@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+ferrumDir=$(realpath $(dirname "$0")/..)
+
+
+node \
+  --stack-size=4000 \
+  "$ferrumDir"/ts/gen/ferrum-org/ferrum-org.js \
+  serve-b 8089
+

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+ferrumDir=$(realpath $(dirname "$0")/..)
+
+exportDir="${1:-exported-website}"
+
+node \
+  --stack-size=4000 \
+  "$ferrumDir"/ts/gen/site/ferrum-org.js \
+  export $exportDir
+

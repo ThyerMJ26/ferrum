@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+exportDir="${1:-exported-website}"
+
+python -m http.server -b localhost -d "$exportDir"
+

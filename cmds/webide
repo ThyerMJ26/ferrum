@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+ferrumDir=$(realpath $(dirname "$0")/..)
+
+node \
+  --stack-size=4000 \
+  "$ferrumDir"/ts/gen/cmds/webide-run.js \
+  "$@"
+

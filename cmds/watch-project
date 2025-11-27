@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+ulimit -s unlimited
+
+export ferrumDir=$(realpath $(dirname "$0")/..)
+echo BASH ferrumDir: $ferrumDir
+
+node \
+    --stack-size=4000 \
+    --max-heap-size=16000 \
+    "$ferrumDir"/ts/gen/cmds/monitor.js "$@"

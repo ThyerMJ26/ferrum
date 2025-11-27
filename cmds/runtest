@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+ulimit -s unlimited
+
+export ferrumDir=$(realpath $(dirname "$0")/..)
+export ferrumFeInFeDir=$(realpath $(dirname "$0")/../fe/fe-in-fe)
+export ferrumTestDir=$(realpath $(dirname "$0")/../tests)
+echo BASH ferrumDir: $ferrumDir
+echo BASH ferrumFeInFeDir: $ferrumFeInFeDir
+echo BASH ferrumTestDir: $ferrumTestDir
+
+node \
+    --stack-size=4000 \
+    --max-heap-size=16000 \
+    "$ferrumDir"/ts/gen/cmds/runtest-nodejs.js "$@"

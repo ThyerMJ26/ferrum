@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+export ferrumDir=$(realpath $(dirname "$0")/..)
+
+rm -f memo-data.tmp
+cd "$ferrumDir"/ts
+./node_modules/.bin/tsc --watch
+

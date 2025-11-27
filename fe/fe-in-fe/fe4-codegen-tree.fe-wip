@@ -1,0 +1,407 @@
+language ferrum/0.1
+
+-- operators that may appear in the output syntax
+let SynOp = { "=>" | "+" | "-" | "*" | "()" };
+
+let compareSynOp : { SynOp -> SynOp -> OpCompare } =
+    a -> b ->
+    match [a, b]
+    [ [ "=>" , _   ] |-> "Right"
+    , [ "()" , "=>"] |-> "Left"
+    , [ "=>" , "()"] |-> "Right"
+    , [ "*"  , _   ] |-> "Left"
+    , [ _    , "*" ] |-> "Right"
+    , [ "+"  , _   ] |-> "Left"
+    , [ _    , "+" ] |-> "Right"
+    , [ "-"  , " " ] |-> "Left"
+    , [ " "  , "-" ] |-> "Left"
+    ];
+
+let SynCtx =
+    { ["Expr"]
+    | ["ExprOp", SynOp]
+    | ["StmtReturn"]
+    | ["StmtAssign", Expr]
+    };
+
+let bracketTr : { [Str, Str] -> DisplayTree -> DisplayTree } =
+    [open, close] -> dt ->
+    dtBranch
+    [ [open, dt]
+    , [close, dtNil]
+    ];
+
+let termBracketTr : { DisplayTree -> DisplayTree } = bracketTr ["(", ")"];
+let typeBracketTr : { DisplayTree -> DisplayTree } = bracketTr ["{", "}"];
+let tupleBracketTr : { DisplayTree -> DisplayTree } = bracketTr ["[", "]"];
+
+
+let paren : { SynCtx -> (Maybe SynOp) -> DisplayTree -> DisplayTree } =
+    ctx -> op -> tr ->
+    termBracketTr tr;
+    -- match [ctx, op]
+    -- [ [ ["ExprOp", opCtx2], [op2] ] |->
+    --     match (compareSynOp opCtx2 op2)
+    --     [ "Left" |->
+    --         termBracketTr tr
+    --     , "Right" |->
+    --         tr
+    --     , "None" |->
+    --         tr
+    --     ]
+    -- , _ |->
+    --     tr
+    -- ];
+
+
+let CgExprTree = { SynCtx -> Expr -> DisplayTree };
+
+let CgDeclTree = { SynCtx -> CgExprTree -> [Expr,Expr] -> DisplayTree };
+let cgDeclTree : CgDeclTree =
+    ctx -> cgExpr -> [pat,exp] ->
+    let letParts =
+        [ ["let ", dtLeaf (cgPatBind pat)]
+        , ["=", cgExpr ["Expr"] exp]
+        , [";", dtNil]
+        ];
+    let patStmts = cgPatStmt pat;
+    let patStmtParts = for patStmts <| ps -> ["", dtLeaf ps];
+    let result = dtBranch <| concat [letParts, patStmtParts];
+    result;
+
+let CgDeclsTree = { SynCtx -> CgExprTree -> (List {[Expr,Expr]}) -> DisplayTree };
+let cgDeclsTree : CgDeclsTree =
+    ctx -> cgExpr -> decls ->
+    let declsTr = 
+        for decls <| decl -> 
+        cgDeclTree ["Expr"] cgExpr decl;
+    let declsParts = for declsTr ( dt -> ["", dt] );
+    dtBranch declsParts;
+
+
+
+let collectAsPats : { Expr -> (List {[Str, Expr]}) } =
+    rec <| (cap : { Expr -> (List {[Str, Expr]}) }) ->
+    expr ->
+    -- let _ = debug ["CAP", show2 expr];
+    match expr
+    [ ["EAs", name, asExpr] |-> 
+        let asPats1 = cap asExpr;
+        let asPats2 = [ [name, asExpr], ... asPats1];
+        asPats2
+    , ["EList", listElems, listTail] |->
+        let elems = append listElems listTail;
+        let asPats = concat (map cap elems);
+        asPats
+    , ["ETermBrackets", expr] |->
+        cap expr
+    , ["EType", expr, typ] |->
+        cap expr
+    , _ |->
+        []
+    ];
+
+let collectLambdaArgs : { Expr -> [(List Expr), Expr] } =
+    rec <| (cla : { Expr -> [(List Expr), Expr] }) ->
+    expr ->
+    match expr
+    [ ["ELambda", arg, body] |->
+        let [args, body2] = cla body;
+        [ [arg, ...args], body2]
+    , _ |->
+        [ [], expr ]
+    ];
+
+let cgExprTree = rec <| (cg2: { SynCtx -> Expr -> DisplayTree }) -> 
+    (ctx: SynCtx) -> (expr: Expr) -> 
+    let cg = cg2 ctx;
+    match expr
+    [ ["EVar", "if"] |-> 
+        dtLeaf "_.if2"
+    , ["EVar", var] |-> 
+        dtLeaf (cgPat expr)
+    , ["ELambda", arg, body] |-> 
+
+        let [args, body2] = collectLambdaArgs expr;
+
+        let argTr = dtLeaf (cgPatBind arg);
+        let asPats = collectAsPats arg;
+        let bodyTr = cg body;
+        let body2Tr = cg body2;
+        let comment = 
+            ifNil asPats
+            [ -> ""
+            , _ -> strCat ["/* AsPats ", show2 asPats, " */"]
+            ];
+
+        let [asPatPre, asPatPost] =
+            ifNil asPats
+            [ -> [[],[]]
+            , _ ->
+                let asPatPre = 
+                    strCat <| for asPats <| [name, pat] -> strCat ["rt.as(v_", name, ", (", cgPatBind pat, ")=> "];
+                let asPatPost = 
+                    strCat <| for asPats <| [name, pat] -> ")";
+                [ [["", dtLeaf asPatPre]], [["", dtLeaf asPatPost]] ]
+            ];
+
+        let argsTr : DisplayParts = 
+            for args <| arg ->
+            let argTr = dtLeaf (cgPatBind arg);
+            let asPats = collectAsPats arg;
+            let dt = 
+                dtBranch <| concat <|
+                [ [ ["(", argTr] ]
+                , [ [")=>", dtNil] ]
+                ,   let asPatPre = strCat <| for asPats <| [name, pat] -> strCat ["rt.as(v_", name, ", (", cgPatBind pat, ")=> "];
+                    [["", dtLeaf asPatPre]]
+                ];
+            ["", dt];
+                
+
+        let closeTr : DisplayParts = 
+            concat <|
+            for args <| arg ->
+            let asPatPost = 
+                strCat <| for asPats <| [name, pat] -> ")";
+            if (asPatPost=="")
+            [ -> 
+                []
+            , ->
+                [["", dtLeaf asPatPost]]
+            ];
+
+        let dtBranchMaybe : { DisplayParts -> (Maybe DisplayPart) } =
+            parts ->
+            ifNil parts
+            [ -> []
+            , _ ->
+                [ ["", dtBranch parts] ]
+            ];
+
+        let result2 = 
+            dtBranch <| concat
+            -- [ [ ["", dtBranch argsTr] ]
+            [ dtBranchMaybe argsTr
+            , [ ["", body2Tr] ]
+            , closeTr
+            ];
+
+        let result1 = 
+            dtBranch <| concat
+            [ [ ["(", argTr] ]
+            , [ [")=>", dtNil] ]
+            , asPatPre
+            , [ ["", bodyTr] ]
+            , asPatPost
+            ];
+
+        result2
+
+    , ["ELambdaMaybe", arg, body] |-> 
+
+        let argTr = dtLeaf (cgPatBind arg);
+        let asPats = collectAsPats arg;
+        let bodyTr = cg body;
+        let comment = 
+            ifNil asPats
+            [ -> ""
+            , _ -> strCat ["/* AsPats ", show2 asPats, " */"]
+            ];
+
+        let [asPatPre, asPatPost] =
+            ifNil asPats
+            [ -> [[],[]]
+            , _ ->
+                let asPatPre = 
+                    strCat <| for asPats <| [name, pat] -> strCat ["rt.as(v_", name, ", (", cgPatBind pat, ")=> "];
+                let asPatPost = 
+                    strCat <| for asPats <| [name, pat] -> ")";
+                [ [["", dtLeaf asPatPre]], [["", dtLeaf asPatPost]] ]
+            ];
+
+        let result = 
+            dtBranch <| concat
+            [ [ ["", dtLeaf "rt.lambdaMaybe"] ]
+            , [ ["(", dtLeaf <| cgPatValue arg] ]
+            , [ [", (", dtLeaf <| cgPatBind arg] ]
+            , [ [")=>", dtNil] ]
+            , asPatPre
+            , [ ["", bodyTr] ]
+            , [ [")", dtNil] ]
+            , asPatPost
+            ];
+
+        let result2 = paren ctx ["=>"] result;
+
+        result2
+
+
+    , ["EApply", func, arg] |-> 
+        -- let funcTr = cg func;
+        -- let argTr = cg arg;
+        let funcTr = termBracketTr (cg func);
+        let argTr = termBracketTr (cg arg);
+        -- let argTr = termBracketTr (cg2 ["Expr"] arg);
+        -- let funcTr = cg2 ["ExprOp", "()"] func;
+        -- TODO collect all arguments, avoid generating needless parentheses
+        dtBranch
+        [ ["(", funcTr]
+        , ["", argTr]
+        , [")", dtNil]
+        ]
+    , ["ELit", val] |-> 
+        dtLeaf (quoteAtomic val)
+    , ["EPair", h, t] |-> 
+        -- let hTr = cg h;
+        -- let tTr = cg t;
+        let hTr = termBracketTr (cg h);
+        let tTr = termBracketTr (cg t);
+        dtBranch
+        [ ["[", hTr]
+        , [",", tTr]
+        , ["]", dtNil]
+        ]
+    , ["ELets", letDecls, letExpr] |-> 
+          let declsTr = cgDeclsTree ["Expr"] cg2 letDecls;
+          let declsParts = [ ["", declsTr] ];
+          let headerParts =
+              [ ["(", dtLeaf "() => {"] 
+              ];
+          let exprParts =
+              [ ["return (", cg letExpr]
+              , [")", dtNil]
+              ];
+          let footerParts =
+              [ ["}", dtLeaf ")()"]
+              ];
+
+          dtBranch (concat [headerParts, declsParts, exprParts, footerParts])
+
+    , ["EType", exp, ty] |-> 
+        cg exp
+    , ["ETermBrackets", exp] |->
+        termBracketTr (cg exp)
+    , ["ETypeBrackets", ty] |->
+        -- TODO use _.Type, as Type and [] are distinct values
+        dtLeaf "null"
+    , ["EOper", "pgEq", [a, b, c]] |->
+        dtBranch
+        [ ["rt.pgEq (", cg a]
+        , [",", cg b]
+        , [",", cg c]
+        , [")", dtNil]
+        ]
+    , ["EOper", "pgPair", [a, b]] |->
+        dtBranch
+        [ ["rt.pgPair (", cg a]
+        , [",", cg b]
+        , [")", dtNil]
+        ]
+    , ["EOper", "|=", [a, b]] |->
+        dtBranch
+        [ ["(", termBracketTr (cg a)]
+        , [" ? ", 
+            dtBranch   
+            [ ["[", cg b]
+            , [",", dtLeaf "null"]
+            , ["]", dtNil]
+            ]
+          ]
+        , [" : ", dtLeaf "null"]
+        , [")", dtNil]
+        ]
+    , ["EOper", "|-", [a, b]] |->
+        dtBranch
+        [ ["(", termBracketTr (cg a)]
+        , [" ? ", cg b]
+        , [" : ", dtLeaf "null"]
+        , [")", dtNil]
+        ]
+    , ["EOper", "^", [a, b]] |->
+        dtBranch
+        [ ["(", cg a]
+        , [" + ", cg b]
+        , [")", dtNil]
+        ]
+    , ["EOper", "::", [a, b]] |->
+        dtBranch
+        [ ["[", cg a]
+        , [" , ", cg b]
+        , ["]", dtNil]
+        ]
+    , ["EOper", opName, [a, b]] |->
+        if (isAlpha opName)
+        [ ->
+            dtBranch
+            [ ["(", dtLeaf (cgPat ["EVar", opName])]
+            , ["(", cg a]
+            , [",", cg b]
+            , ["))", dtNil]
+            ]
+        , ->
+            -- TODO collect arguments to multiple occurences of the same operator, avoid excessive parenthesese
+            dtBranch
+            [ ["(", cg a]
+            , [" ", dtLeaf opName]
+            , [" ", cg b]
+            , [")", dtNil]
+            ]
+        ]
+    , ["EOper", opName, [a]] |->
+        if (isAlpha opName)
+        [ ->
+            dtBranch
+            [ ["(", dtLeaf (cgPat ["EVar", opName])]
+            , ["( ", cg a]
+            , ["))", dtNil]
+            ]
+        , ->
+            dtBranch
+            [ ["(", dtLeaf opName]
+            , [" ", cg a]
+            , [")", dtNil]
+            ]
+        ]
+    , ["EOper", opName, []] |->
+        if (isAlpha opName)
+        [ ->
+            dtBranch
+            [ ["(", dtLeaf (cgPat ["EVar", opName])]
+            , [")", dtNil]
+            ]
+        , ->
+            dtBranch
+            [ ["(", dtLeaf opName]
+            , [")", dtNil]
+            ]
+        ]
+    , ["EList", elems, maybeTail] |->
+        let tlTr = 
+            match maybeTail
+            [ [] |-> dtLeaf "null"
+            , [t] |->
+                cg t
+            ];
+        let [_, result] = 
+            while [reverse elems: List Expr, tlTr: DisplayTree] <|
+            [[x, ...xs], tr] |-> 
+            let tr2 = 
+                dtBranch 
+                [ ["[", cg x]
+                , [",", tr]
+                , ["]", dtNil]
+                ];
+            [xs, tr2];
+        result
+            
+    , _ |-> error ["missing case", "cgExprTree", show(expr)]
+    ];
+
+
+let cgExprStrTree : { Str -> JsStr } = input -> dtShowJoin (cgExprTree ["Expr"] (parseExpr (scan input)));
+
+let evalCgExprStrTree : { Str -> Any } = input -> jsEval (cgExprStrTree input);
+
+let evalJsCgExprTree : { Expr -> Any } = expr -> jsEval (dtShowJoin (cgExprTree ["Expr"] expr));
+

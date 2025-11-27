@@ -1,0 +1,33 @@
+language ferrum/test/0.1
+
+
+[ 
+
+  [ ["name", "power"]
+  , ["language", "ferrum/0.1"]
+  , ["primitives", "../fe/primitives/vso.fe"]
+  , ["type_check", "bidir"]
+  , ["decls", 
+  """
+    let power : { Int -> Int -> Int } = 
+      fix <| (power : { Int -> Int -> Int }) -> (n : Int) -> (x : Int) ->
+      if (n == 0)
+      [ -> 1
+      , -> power (n - 1) x * x
+      ];
+
+    let cube = power <$ 3;   
+    -- let cube = power <| 3;   
+
+  """
+  ]
+  , ["expectTerm", "cube", "x -> 1 * x * x * x"]
+  , ["expectValue", "cube 5", "125"]
+  , ["expectValue", "(power <$ 3) 5", "125"]
+  ]
+
+
+
+]
+
+
