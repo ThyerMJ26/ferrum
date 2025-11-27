@@ -5,11 +5,13 @@
 
 - An experimental work-in-progress.
 
+<!--
 
 More details at:
 -    [Website](https://www.ferrum.org/)
 -    [Repo](https://github.com/ThyerMJ26/ferrum)   
  
+-->
 
 
 
