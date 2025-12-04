@@ -254,6 +254,22 @@ language ferrum/test/0.1
   , ["expect", "y", "value", "9"]
   ]
 
+, [ ["name", "pipeFwd2"]
+  , ["language", "ferrum/0.1"]
+  , ["primitives", "../fe/primitives/vso.fe"]
+  , ["decls",
+    """
+      let x = 
+        3 
+        |> (x -> x + x)
+        |> (y -> y * y);
+
+    """
+    ]
+  , ["type_check", "bidir"]
+  , ["expect", "x", "value", "36"]
+  ]
+
 
 , [ ["name", "lambda-maybe-types"]
   , ["language", "ferrum/0.1"]

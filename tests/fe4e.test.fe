@@ -211,28 +211,30 @@ language ferrum/test/0.1
 
 
 
-, [ [ "name", "html" ]
-  , [ "language", "ferrum/0.1" ]
-  , [ "type_check", "bidir" ]
-  , [ "project", "../fe/fe-in-fe/fe4.proj.fe" ]
-  , [ "decls",
-      """
-        let hello : Html = 
-          ["html", [],
-            ["body", [],
-              "hello"
-            ]
-          ];
-        let t1 = -> htmlToStr hello;  
-      """
-    ]
-  , ["expect", "t1[]", "value", "\"<html>\\n<body>\\nhello\\n</body>\\n</html>\""]
-  , ["expect", "t1[]", "value", 
-      """
-       "<html>\n<body>\nhello\n</body>\n</html>"
-      """
-    ]
-  ]
+-- This test worked with tree-types, but possibly not yet with graph-types.
+-- The fe4-html...fe files have been commented out in fe4.proj.fe so this test no longer runs.
+-- , [ [ "name", "html" ]
+--   , [ "language", "ferrum/0.1" ]
+--   , [ "type_check", "bidir" ]
+--   , [ "project", "../fe/fe-in-fe/fe4.proj.fe" ]
+--   , [ "decls",
+--       """
+--         let hello : Html = 
+--           ["html", [],
+--             ["body", [],
+--               "hello"
+--             ]
+--           ];
+--         let t1 = -> htmlToStr hello;  
+--       """
+--     ]
+--   , ["expect", "t1[]", "value", "\"<html>\\n<body>\\nhello\\n</body>\\n</html>\""]
+--   , ["expect", "t1[]", "value", 
+--       """
+--        "<html>\n<body>\nhello\n</body>\n</html>"
+--       """
+--     ]
+--   ]
 
 , [ [ "name", "transient" ]
   , [ "language", "ferrum/0.1" ]

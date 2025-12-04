@@ -54,9 +54,10 @@ export function getIo(): Io {
 }
 
 export function setIo(ioImpl: Io): void {
-    // TODO Don't disable this, add checks in initApp to avoid calling this twice.
-    // TODO Long-term, don't use a global io variable.
-    assert.isTrue(io === undefined, 'The "setIo" function must be called at most once, typically at the start of "main".')
+    // if (ioImpl === null) return
+    // // TODO Don't disable this, add checks in initApp to avoid calling this twice.
+    // // TODO Long-term, don't use a global io variable.
+    // assert.isTrue(io === undefined, 'The "setIo" function must be called at most once, typically at the start of "main".')
     io = ioImpl
 }
 

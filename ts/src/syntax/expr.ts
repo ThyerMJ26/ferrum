@@ -12,7 +12,7 @@ export type TorP = "Term" | "Pat"
 // let showType = showType2
 let showType = (ty: Type) => showType4(ty, null, null)
 
-type ApplyOp = "" | "<|" | "|>"
+export type ApplyOp = "" | "<|" | "|>"
 
 export type EVar<T = {}> = T & { tag: "EVar", name: string }
 export type ELambda<T> = T & { tag: "ELambda", pat: Expr<T>, body: Expr<T> }

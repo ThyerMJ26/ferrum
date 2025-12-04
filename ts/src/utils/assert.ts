@@ -6,6 +6,7 @@ type Assert = {
     allTrue<A, T extends A>(predicate: Predicate<A, T>, value: A[], msg?: Msg): asserts value is T[]
     isFalse(value: boolean, msg?: Msg): asserts value is false,
     isNotNull<T>(value: T | null, msg?: Msg): asserts value is T,
+    isDefined<T>(value: T | undefined, msg?: Msg): asserts value is T,
     impossible(msg?: Msg): never,
     unreachable(msg?: Msg): never,
     todo(msg?: Msg): never,
@@ -18,6 +19,7 @@ export const assert: Assert = {
     allTrue,
     isFalse,
     isNotNull,
+    isDefined,
     impossible,
     unreachable,
     todo,
@@ -71,6 +73,13 @@ export function isFalse(value: boolean, msg?: Msg): asserts value is false {
 
 export function isNotNull<T>(value: T | null, msg?: Msg): asserts value is T {
     if (value === null) {
+        console.error(`Assertion Failed: (${getMsg(msg)})`)
+        throw new Error(`Assertion Failed: (${getMsg(msg)})`)
+    }
+}
+
+export function isDefined<T>(value: T | undefined, msg?: Msg): asserts value is T {
+    if (value === undefined) {
         console.error(`Assertion Failed: (${getMsg(msg)})`)
         throw new Error(`Assertion Failed: (${getMsg(msg)})`)
     }

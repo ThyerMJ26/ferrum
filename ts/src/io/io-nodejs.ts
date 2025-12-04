@@ -4,11 +4,20 @@ import * as path from "node:path"
 import * as url from "node:url"
 
 import { assert } from "../utils/assert.js"
-import { Io, url_resolveFile } from "../io/io.js"
+import { Io, setIo, getIo, url_resolveFile } from "../io/io.js"
 
 let vfs_used = false
 
-export function mkIoNodeJs(vfs_root: URL): Io {
+setIo(mkIoNodeJs_real(url.pathToFileURL("/")))
+
+// export const mkIoNodeJs = mkIoNodeJs_dummy
+export const mkIoNodeJs = mkIoNodeJs_real
+
+export function mkIoNodeJs_dummy(vfs_root: URL): Io {
+    return null as any
+}
+
+export function mkIoNodeJs_real(vfs_root: URL): Io {
     const io: Io = {
         log(...args: string[]): void {
             console.log(...args)

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+export ferrumDir=$(realpath $(dirname "$0")/..)
+cd "$ferrumDir"/ts
+npm install

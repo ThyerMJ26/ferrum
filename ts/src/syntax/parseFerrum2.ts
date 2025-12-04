@@ -9,47 +9,25 @@ import {
     Expr,
     exprTransform,
     exprTransform2PairList,
-    TorT
+    TorT,
+    ApplyOp
 } from "../syntax/expr.js"
 import { ParseState } from "../syntax/parse.js"
-import { lookupOpDefn } from "./operator.js"
+import { Fixity, operatorParser, MkOpExpr, OpCompare, OperatorTableBuilder, OperatorTable, mkOperatorTable, OperatorTableQuery, OpDefn } from "./operator.js"
 
-// type ParseState = { input: Token[], pos: number }
-// type ParseState = parse.ParseState
 
-function psEof(ps: ParseState): boolean {
-    return ps.pos >= ps.input.length
-}
-
-function psPeek(ps: ParseState): Token {
-    if (psEof(ps)) {
-        throw new Error("past end of input")
-    }
-    let token = ps.input[ps.pos]
-    return token
-}
-
-function psTake(ps: ParseState): Token {
-    let tok = psPeek(ps)
-    ps.pos++
-    return tok
-}
-
+// TODO Move these into the ParseState interface.
 function parseToken(ps: ParseState, tag: string, val: any, seeAlsoToken: Token | null): unit {
-    let tok = psTake(ps)
+    const tok = ps.take()
     if (tok.tag !== tag || tok.value !== val) {
-        let seeAlsoMsg = ""
-        if (seeAlsoToken !== null) {
-            // seeAlsoMsg = `, see also ${JSON.stringify(seeAlsoToken)}`
-            seeAlsoMsg = `, see also (${JSON.stringify(seeAlsoToken.value)}) (${showLoc(seeAlsoToken.loc)})`
-            // seeAlsoMsg = `, see also (${JSON.stringify(seeAlsoToken.value)}) (${showPos(seeAlsoToken.loc.range.start)})`
-        }
+        const seeAlsoMsg = seeAlsoToken === null ? "" :
+            `, see also (${JSON.stringify(seeAlsoToken.value)}) (${showLoc(seeAlsoToken.loc)})`
         throw new Error(`unexpected token at (${showLoc(tok.loc)}), got (${tok.tag} ${JSON.stringify(tok.value)}), expected (${tag} ${JSON.stringify(val)}) ${seeAlsoMsg}`)
     }
 }
 
 function tryParseToken(ps: ParseState, tag: string, val: any): boolean {
-    let tok = psPeek(ps)
+    const tok = ps.peek()
     if (tok.tag !== tag || tok.value !== val) {
         return false
     }
@@ -60,64 +38,13 @@ function tryParseToken(ps: ParseState, tag: string, val: any): boolean {
 }
 
 
-type Fixity = "Prefix" | "Infix" | "Postfix"
-type OpDefn = { name: string, fixity: Fixity }
-type OpCompare = "Left" | "Right" | "None"
 
-function compareOperators(l: OpDefn, r: OpDefn): OpCompare {
-    // TODO sensible precedence comparison / lookup operator definitions 
-    if (r.fixity !== "Infix") {
-        throw new Error(`expected right operator (${r}) to be infix`)
-    }
-    switch (l.fixity) {
-        case "Prefix":
-            if (l.name === "->") {
-                return "Right"
-            }
-            return "None"
-        case "Infix":
-            if (l.name === "@") {
-                return "Left"
-            }
-            if (r.name === "@" || r.name === "->" || r.name === "|->" || r.name === "|=>" || r.name === "<|" || r.name === "::") {
-                return "Right"
-            }
-            if (l.name === "->" || l.name === "|->" || l.name === "|=>" || l.name === "<|") {
-                return "Right"
-            }
-            if (l.name === r.name) {
-                switch (l.name) {
-                    case "<|":
-                    case "::":
-                        return "Right"
-                    default:
-                }        return "Left"
-            }
-            return "None"
-        default:
-            throw new Error("missing case")
-    }
-}
+// If user-definable operators were supported, then it would make sense to lookup operator names in the environment.
+// const USE_EPRIMS = false // use eVar
+// As it is, operator names all correspond to built-in primitive names, and bypass the environment lookup
+const USE_EPRIMS = true // use ePrim
 
-// TODO define the known operators
-
-function lookupOp(name: string): OpDefn {
-    // TODO lookup up op in a list of valid ops
-    let opDefn: OpDefn = { name: name, fixity: "Infix" }
-    return opDefn
-}
-
-function lookupPrefixOp(name: string): OpDefn {
-    // TODO lookup up op in a list of valid ops
-    let opDefn: OpDefn = { name: name, fixity: "Prefix" }
-    return opDefn
-}
-
-
-// const USE_EOPS = false
-const USE_EOPS = true
-
-function mkApplyOp(tort: TorT, name: string, loc: Loc, arg1: ExprLoc, arg2: ExprLoc): ExprLoc {
+export function mkOpInfix(tort: TorT, name: string, loc: Loc, arg1: ExprLoc, arg2: ExprLoc): ExprLoc {
     let show = (a: any) => JSON.stringify(a)
     if (arg1 === undefined) {
         throw new Error(`mkApplyOp, undefined arg1, ${show(name)}, ${show(loc)}`)
@@ -150,26 +77,14 @@ function mkApplyOp(tort: TorT, name: string, loc: Loc, arg1: ExprLoc, arg2: Expr
             return eApply(locA, arg2, arg1, "|>")
         case "<|":
             return eApply(locA, arg1, arg2, "<|")
-        // TODO remove this (::), the double-comma in tuple-brackets is better
-        case "::": {
-            assert.impossible("Invalid syntax")
-            let loc = locMerge(arg1.loc, arg2.loc)
-            // if (arg2.tag==="EList") {
-            //     return eList(loc, [arg1, ...arg2.exprs], arg2.tail)
-            // }
-            // else 
-            {
-                return eList(locA, [arg1], arg2)
-            }
-        }
         default: {
-            if (USE_EOPS) {
+            if (USE_EPRIMS) {
                 let loc3 = { loc: locMerge(arg1.loc, arg2.loc) }
-                const nameC = name
-                const op = lookupOpDefn(nameC, "Infix", tort)
-                assert.isTrue(op !== null)
-                const nameA = op.nameA
-                let arg3 = ePrim(loc3, nameA, [arg1, arg2])
+                const op = ferrumOperatorTable.getInfix(name)
+                assert.isDefined(op)
+                const nameP = op.nameP[tort]
+                assert.isDefined(nameP)
+                let arg3 = ePrim(loc3, nameP, [arg1, arg2])
                 return arg3
             }
             else {
@@ -180,7 +95,8 @@ function mkApplyOp(tort: TorT, name: string, loc: Loc, arg1: ExprLoc, arg2: Expr
         }
     }
 }
-function mkApplyOpPrefix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
+
+function mkOpPrefix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
     switch (name) {
         case "->": {
             // let unitArg: Expr = { tag: "EDatum", value: null, loc: loc }
@@ -190,7 +106,7 @@ function mkApplyOpPrefix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
         }
         default: {
             assert.impossible("Do we ever get here?")
-            if (USE_EOPS) {
+            if (USE_EPRIMS) {
                 let loc3 = locMerge(loc, arg1.loc)
                 let arg3 = ePrim({ loc: loc3 }, name, [arg1])
                 return arg3
@@ -203,11 +119,11 @@ function mkApplyOpPrefix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
     }
 }
 
-function mkApplyOpPostfix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
+function mkOpPostfix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
     assert.impossible("Do we ever get here?")
     switch (name) {
         default: {
-            if (USE_EOPS) {
+            if (USE_EPRIMS) {
                 let loc2 = locMerge(loc, arg1.loc)
                 let arg2 = ePrim({ loc: loc2 }, name, [arg1])
                 return arg2
@@ -220,120 +136,164 @@ function mkApplyOpPostfix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
     }
 }
 
-function foldOpArgs2(tort: TorT, opStack: [ExprLoc, OpDefn][], argStack: ExprLoc[], opDefn: OpDefn | null, juxtaposedApplyPossible: boolean): unit {
-    let precedence = "Left"
-    while (opStack.length !== 0 && precedence === "Left") {
-        let [prevOpExpr, prevOpDefn] = opStack[opStack.length - 1]
-        precedence = opDefn === null ? "Left" : compareOperators(prevOpDefn, opDefn)
-        // if (juxtaposedApplyPossible) {
-        // }
-        // else {
-        //     precedence = "Left"
-        // }
-        switch (precedence) {
-            case "Left": {
-                switch (prevOpDefn.fixity) {
-                    case "Prefix": {
-                        let arg1 = argStack.pop()!
-                        opStack.pop()
-                        let arg3 = mkApplyOpPrefix(prevOpDefn.name, prevOpExpr.loc, arg1)
-                        argStack.push(arg3)
-                        break
-                    }
-                    case "Infix": {
-                        let arg2 = argStack.pop()!
-                        let arg1 = argStack.pop()!
-                        opStack.pop()
-                        let arg3 = mkApplyOp(tort, prevOpDefn.name, prevOpExpr.loc, arg1, arg2)
-                        argStack.push(arg3)
-                        break
-                    }
-                    case "Postfix":
-                        throw new Error("impossible")
-                    default:
-                        throw new Error("missing case")
-                }
-            }
-            case "Right":
-                break
-            case "None":
-                throw new Error(`no precedence relationship exists between operators (${prevOpDefn.name}) and (${opDefn!.name}) at ${showLoc(prevOpExpr.loc)}`)
-            default:
-                throw new Error("missing case")
-        }
+
+const mkOp: MkOpExpr = {
+    mkApply(op: ApplyOp, func: ExprLoc, arg: ExprLoc): ExprLoc {
+        const loc = locMerge(func.loc, arg.loc)
+        const arg2: ExprLoc = { tag: "EApply", loc: loc, func, arg, op: "" }
+        return arg2
+    },
+    mkInfix(tort, opName, opLoc, lhs, rhs) {
+        const loc = locMerge(lhs.loc, rhs.loc)
+        return mkOpInfix(tort, opName, loc, lhs, rhs)
+    },
+    mkPostfix(tort, opName, opLoc, lhs) {
+        return mkOpPostfix(opName, opLoc, lhs)
+    },
+    mkPrefix(tort, opName, opLoc, rhs) {
+        return mkOpPrefix(opName, opLoc, rhs)
+    },
+    mkParseError(errorLoc, errorMsg) {
+        throw new Error(`Operator Parser Error at (${showLoc(errorLoc)}): ${errorMsg}`)
+        // TODO Incorporate errors in the AST and continue parsing.
+        return ePrim({ loc: errorLoc }, errorMsg, [])
     }
 }
 
-function foldOpArgs(tort: TorT, opArgs: ExprLoc[]): ExprLoc {
-    let opStack: [ExprLoc, OpDefn][] = []
-    let argStack: ExprLoc[] = []
-    let juxtaposedApplyPossible = false
-    opArgs.forEach(opArg => {
-        if (opArg.tag === "ESym") {
-            // if (argStack.length === 0) {
-            if (!juxtaposedApplyPossible) {
-                let opDefn = lookupPrefixOp(opArg.name)
-                opStack.push([opArg, opDefn])
-            }
-            else {
-                let opDefn = lookupOp(opArg.name)
-                switch (opDefn.fixity) {
-                    case "Prefix":
-                        throw new Error("impossible")
-                    case "Infix": {
-                        foldOpArgs2(tort, opStack, argStack, opDefn, juxtaposedApplyPossible)
-                        opStack.push([opArg, opDefn])
-                        juxtaposedApplyPossible = false
-                        break
-                    }
-                    case "Postfix": {
-                        if (argStack.length === 0) {
-                            throw new Error(`postfix operator (${opDefn.name}) not permitted here (${showLoc(opArg.loc)})`)
-                        }
-                        let arg1 = argStack.pop()!
-                        let arg2 = mkApplyOpPostfix(opDefn.name, opArg.loc, arg1)
-                        argStack.push(arg2)
-                        break
-                    }
-                    default:
-                        throw new Error("missing case")
+type FerrumRuleName =
+    | "As"
+    // | "Juxtaposed" TODO ? Implicit juxtaposed application ?
+    | "Bool" | "Bool_And" | "Bool_Or"
+    | "Arith" | "Arith_Negate" | "Arith_Power" | "Arith_Mult" | "Arith_AddSub"
+    | "Rel"
+    | "Set" | "Set_Rc" | "Set_Inter" | "Set_Union"
+    | "Colon"
+    | "Expr" // Simple expression, excluding lambdas.
+    | "Pipe_Fwd" | "Pipe_Bwd"
+    | "Abs"
+    | "PostSeq"
 
-                }
-            }
-        }
-        else { // opArg.tag !== "ESym"
-            if (juxtaposedApplyPossible) {
-                let arg1 = argStack.pop()!
-                let loc = locMerge(arg1.loc, opArg.loc)
-                let arg2: ExprLoc = { tag: "EApply", loc: loc, func: arg1, arg: opArg, op: "" }
-                argStack.push(arg2)
-            }
-            else {
-                argStack.push(opArg)
-                juxtaposedApplyPossible = true
-            }
-        }
-    })
 
-    foldOpArgs2(tort, opStack, argStack, null, juxtaposedApplyPossible)
+type FerrumOperName =
+    | "@"
+    // | "" TODO ? Implicit juxtaposed application ?
+    | "&&" | "||"
+    | "+" | "-" | "*"
+    | "<" | "<=" | "==" | ">=" | ">"
+    | "\\" | "&" | "|"
+    | ":"
+    | "|>" | "<|" | "<$"
+    | "->" | "=>" | "|->" | "|=>"
+    | "|-" | "|="
+    | "$?"
 
-    if (argStack.length === 1 && opStack.length === 0) {
-        let result = argStack.pop()!
-        return result
-    }
-    else {
-        opArgs.forEach(opArg => {
-            if (opArg.tag === "ESym") {
-                console.log("OpArg", opArg.name)
-            }
-            else {
-                console.log("OpArg", opArg.tag)
-            }
-        })
-        let showOpArgs = JSON.stringify(opArgs.map(oa => oa.tag === "ESym" ? oa.name : oa.tag))
-        throw new Error(`failed to fold op-args (${showLoc(opArgs[0].loc)}) (${showOpArgs})`)
-    }
+
+
+function mkFerrumOperatorTable(): OperatorTableQuery<FerrumRuleName, FerrumOperName> {
+    const ot = mkOperatorTable<FerrumRuleName, FerrumOperName>()
+
+    /*** Rules ***/
+
+    ot.opRule("As", "None", [])
+
+    // If this were Haskell, the "@" symbol would bind more tightly than juxtposed apply,
+    // for example:
+    //   merge x@(x0:xs) y@(y0:ys) = ...
+    // This syntax doesn't currently occur in Ferrum, so the issue doesn't (yet?) arise.
+    // ( "@" can only occur in patterns, and applications can never occur (directly) in patterns. )
+
+    // TODO ? Treat juxtaposed apply as just another operator ? 
+    // TODO   This could be done with a simple additional pass to 
+    // TODO     insert implicit application operators between adjacent non-symbols in an expression list.
+    // TODO       (and between postfix operators and non-symbols).
+    // ot.opRule("Juxtaposed", "Left", ["As"])
+
+    ot.opRule("Bool_And", "Left", [])
+    ot.opRule("Bool_Or", "Left", ["Bool_And"])
+    ot.opRule("Bool", "None", ["Bool_Or"])
+
+    ot.opRule("Set_Rc", "None", [])
+    ot.opRule("Set_Inter", "Left", [])
+    ot.opRule("Set_Union", "Left", ["Set_Inter"])
+    ot.opRule("Set", "None", ["Set_Rc", "Set_Inter", "Set_Union"])
+
+    ot.opRule("Arith_Negate", "Left", [])
+    ot.opRule("Arith_Power", "Right", ["Arith_Negate"])
+    ot.opRule("Arith_Mult", "Left", ["Arith_Power"])
+    ot.opRule("Arith_AddSub", "Left", ["Arith_Mult"])
+    ot.opRule("Arith", "None", ["Arith_AddSub"])
+
+    ot.opRule("Rel", "None", ["Arith"])
+
+    ot.opRule("Expr", "None", ["Bool", "Arith", "Rel", "Set", "As"])
+
+    ot.syRule("Pipe_Bwd", ["Expr"], ["Pipe_Bwd", "As", "Abs"])
+    ot.syRule("Pipe_Fwd", ["Pipe_Fwd", "Expr"], ["Pipe_Bwd", "Abs"])
+    ot.syRule("PostSeq", [], [])
+
+    ot.opRule("Colon", "None", ["Expr", "Pipe_Fwd", "Pipe_Bwd"])
+    ot.syRule("Abs", ["As"], ["Abs", "Colon"])
+
+
+    /*** Operators ***/
+
+    ot.addInfix("@"  /**/, "Tm", null, "As")
+
+    // TODO ? The juxtaposed apply "operator".
+    // ot.addInfix(""  /**/, "Tm", "Ty", "Apply")
+
+    // More arithmetic operators, not yet implemented.
+    // ot.addPrefix("-"  /**/, "Tm", null, "Arith_Negate")
+    // ot.addInfix("**"  /**/, "Tm", null, "Arith_Power")
+
+    ot.addInfix("*"  /**/, "Tm", null, "Arith_Mult")
+    ot.addInfix("+"  /**/, "Tm", null, "Arith_AddSub")
+    ot.addInfix("-"  /**/, "Tm", null, "Arith_AddSub")
+
+    ot.addInfix("==" /**/, "Tm", null, "Rel")
+    ot.addInfix(">"  /**/, "Tm", null, "Rel")
+    ot.addInfix(">=" /**/, "Tm", null, "Rel")
+    ot.addInfix("<"  /**/, "Tm", null, "Rel")
+    ot.addInfix("<=" /**/, "Tm", null, "Rel")
+
+    ot.addInfix("&&" /**/, "Tm", null, "Bool_And")
+    ot.addInfix("||" /**/, "Tm", null, "Bool_Or")
+
+
+    ot.addInfix("\\" /**/, null, "Ty", "Set_Rc")
+    ot.addInfix("&"  /**/, null, "Ty", "Set_Inter")
+    ot.addInfix("|"  /**/, null, "Ty", "Set_Union")
+
+    ot.addInfix(":"  /**/, "Tm", null, "Colon")
+
+    ot.addInfix("<|"  /**/, "Tm", null, "Pipe_Bwd")
+    ot.addInfix("|>"  /**/, "Tm", null, "Pipe_Fwd")
+    ot.addInfix("<$"  /**/, "Tm", null, "Pipe_Bwd")
+    ot.addPostfix("$?" /**/, "Tm", null, "PostSeq")
+
+    ot.addPrefix("->"   /**/, "Tm", null, "Abs")
+    ot.addInfix("->"  /**/, "Tm", null, "Abs")
+    ot.addInfix("=>"  /**/, "Tm", null, "Abs")
+    ot.addInfix("|->" /**/, "Tm", null, "Abs")
+    ot.addInfix("|=>" /**/, "Tm", null, "Abs")
+
+    // TODO ? Rename these as "?-"" and "?="", they aren't meant to look like turnstiles.
+    ot.addInfix("|-" /**/, "Tm", null, "Abs")
+    ot.addInfix("|=" /**/, "Tm", null, "Abs")
+
+    ot.update()
+
+    return ot
 }
+
+const ferrumOperatorTable = mkFerrumOperatorTable()
+
+
+
+
+
+
+
 
 function parseExpr(ps: ParseState, seeAlsoToken: Token | null = null): ExprLoc {
     const allowLet = true
@@ -347,7 +307,7 @@ function parseExpr(ps: ParseState, seeAlsoToken: Token | null = null): ExprLoc {
     }
 
     if (expr === null) {
-        const tok = psPeek(ps)
+        const tok = ps.peek()
         throw new Error(`failed to parse expression at (${showLoc(tok.loc)}) got (${tok.tag} ${JSON.stringify(tok.value)}) ${seeAlsoMsg}`)
     }
 
@@ -360,22 +320,23 @@ function parseExpr(ps: ParseState, seeAlsoToken: Token | null = null): ExprLoc {
     while (expr !== null)
 
     const tort = ps.peekTorT()
-    const result = foldOpArgs(tort, opArgs)
+
+    const result = operatorParser(ferrumOperatorTable, mkOp, tort, opArgs)
     return result
 }
 
 function tryParseExprPart(ps: ParseState, allowLet: boolean): ExprLoc | null {
-    if (psEof(ps)) {
+    if (ps.eof()) {
         return null
     }
-    let tok = psPeek(ps)
+    let tok = ps.peek()
     switch (tok.tag) {
         case "integer":
         case "string":
-            psTake(ps)
+            ps.take()
             return { tag: "EDatum", value: tok.value, loc: tok.loc }
         case "ident": {
-            psTake(ps)
+            ps.take()
             let expr1: ExprLoc = { tag: "EVar", name: tok.value, loc: tok.loc }
             return expr1
         }
@@ -406,7 +367,7 @@ function tryParseExprPart(ps: ParseState, allowLet: boolean): ExprLoc | null {
         case "separator":
             switch (tok.value) {
                 case "(": {
-                    psTake(ps)
+                    ps.take()
                     ps.pushTorT("Term")
                     let loc1 = ps.srcLoc2()
                     let expr = parseExpr(ps)
@@ -416,7 +377,7 @@ function tryParseExprPart(ps: ParseState, allowLet: boolean): ExprLoc | null {
                     return eTermBrackets({ loc: locMerge(loc1, loc2) }, expr)
                 }
                 case "{": {
-                    psTake(ps)
+                    ps.take()
                     ps.pushTorT("Type")
                     let loc1 = ps.srcLoc2()
                     let expr = parseExpr(ps)
@@ -427,7 +388,7 @@ function tryParseExprPart(ps: ParseState, allowLet: boolean): ExprLoc | null {
                     return typeBrackets
                 }
                 case "[": {
-                    psTake(ps)
+                    ps.take()
                     let elems: ExprLoc[] = []
                     let tail: ExprLoc | null = null
                     let loc1 = ps.srcLoc2()
@@ -465,7 +426,7 @@ function tryParseExprPart(ps: ParseState, allowLet: boolean): ExprLoc | null {
         case "keysym":
             return null
         case "symbol": {
-            psTake(ps)
+            ps.take()
             let expr1: ExprLoc = { tag: "ESym", name: tok.value, loc: tok.loc }
             return expr1
         }
@@ -498,31 +459,6 @@ function convertTokens(tokens: Token[]) {
     })
 }
 
-// const transformTypeBrackets = (exp: Expr): Expr => {
-//     if (exp.tag === "ETypeBrackets") {
-//         const exp2 = convertTypeBrackets(exp.loc, exp.expr, false)
-//         // console.log(showExp(exp2))
-//         return exp2
-//     }
-//     else {
-//         return exp
-//     }
-// }
-
-// const convertTypeBracketsExpr = (exp: Expr): Expr => {
-//     const exp2 = exprTransform(exp, e => transformTypeBrackets(e))
-//     return exp2
-// }
-
-// const convertTypeBracketsDecls = (decls: Decl[]): Decl[] => {
-//     let decls2: Decl[] = []
-//     for (const [pat, defn] of decls) {
-//         const pat2 = exprTransform(pat, e => transformTypeBrackets(e))
-//         const defn2 = exprTransform(defn, e => transformTypeBrackets(e))
-//         decls2.push([pat2, defn2])
-//     }
-//     return decls2
-// }
 
 export function parseFile(ps: ParseState, language: string | null): DeclLoc[] {
     switch (language) {
@@ -536,7 +472,7 @@ export function parseFile(ps: ParseState, language: string | null): DeclLoc[] {
             if (!tryParseToken(ps, "eof", null)) {
                 // if (!ps.eof()) {
                 // throw new Error(`failed to parse to end of file, reached ${showLoc(ps.srcLoc())}`)
-                throw new Error(`failed to parse to end of file, reached ${showLoc(psPeek(ps).loc)}`)
+                throw new Error(`failed to parse to end of file, reached ${showLoc(ps.peek().loc)}`)
             }
             return decls
         }
@@ -546,7 +482,6 @@ export function parseFile(ps: ParseState, language: string | null): DeclLoc[] {
 }
 
 
-// export 
 function parseExp(ps: ParseState, language: string | null, tort: TorT): ExprLoc {
     switch (language) {
         case "Ferrum/0.1":

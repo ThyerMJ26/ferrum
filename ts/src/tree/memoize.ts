@@ -336,7 +336,7 @@ class MemoDataImpl implements MemoData {
             let position = 0
             do {
                 bytesread = this.io.fd_read(fd, bufferBytes, 0, maxRead, position)
-                bufferStr += bufferBytes.slice(0, bytesread).toString()
+                bufferStr += bufferBytes.subarray(0, bytesread).toString()
                 let lines = bufferStr.split("\n")
                 let lastLine = lines[lines.length - 1]
                 lines.pop()
