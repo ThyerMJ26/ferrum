@@ -84,7 +84,7 @@ language ferrum/test/0.1
     ]
 
   -- If we eta-contract the result, we get this.
-  , ["expectTerm", "two_raised_b", "fix <| f -> n -> if (n == 0) [ -> 1, -> n $? f (n - 1) * 2]"]
+  , ["expectTerm", "two_raised_b", "fix2 <| f -> n -> if (n == 0) [ -> 1, -> n $? f (n - 1) * 2]"]
   -- Note "fix2" is a 2-arity primitive, it can only exist in the graph in a fully saturated form.
   -- Any under-saturated uses in the AST will be automatically eta-expanded during instantiation.
   ]
