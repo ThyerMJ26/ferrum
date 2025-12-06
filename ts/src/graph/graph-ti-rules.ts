@@ -2,12 +2,11 @@ import { assert } from "../utils/assert.js"
 import {
     TypeAddr, Addr, Depth, depthInc, DepthShift,
     AddrQ, Addr_of_TyCon, Addr_of_TyFun,
-    Heap, TypeAddrD, TypeAddrMb, false0, isAddrYes, noAddr,
+    Heap, TypeAddrD, TypeAddrMb, false0, isAddrYes, addrNo,
     Addr_of_TyOp1,
     depthZero,
     Addr_of_TyPrim1,
     addrTypeType,
-    addrNo,
     assumeIsType,
 } from "../graph/graph-heap2.js"
 import {
@@ -1061,9 +1060,9 @@ export function mkTiRules(
     }
 
     function tryUnrollRecursiveType(ty: Addr_of_TyPrim1): TypeAddrMb {
-        if (!(isTyPrim("Fix", ty))) return noAddr
+        if (!(isTyPrim("Fix", ty))) return addrNo
         const lam = dOf(arg0_ty(ty))
-        if (!(isTmLam(lam))) return noAddr
+        if (!(isTmLam(lam))) return addrNo
         const depth = depthOf(ty)
         const depthVar = depthInc(depthOf(lam))
         const depthShift = depth - depthVar

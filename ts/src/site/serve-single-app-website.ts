@@ -14,9 +14,9 @@ export const topDir = url.fileURLToPath(import.meta.resolve("../../.."))
 export function serveAppWebsite(port: number, appFilename: string, appFnName: string, args: string[]): unit {
 
     const siteDefn: SiteDefn = siteBuild(b => {
-        b.staticFiles("/gen", "ts/gen", ".js",  /**/ "text/javascript")
-        b.staticFiles("/gen", "ts/gen", ".map", /**/ "application/json")
-        b.staticFiles("/src", "ts/src", ".ts",  /**/ "text/plain")
+        b.staticFiles("/gen", "/ts/gen", ".js",  /**/ "text/javascript")
+        b.staticFiles("/gen", "/ts/gen", ".map", /**/ "application/json")
+        b.staticFiles("/src", "/ts/src", ".ts",  /**/ "text/plain")
         b.appDefine("APP", appFilename, appFnName)
         b.appInstantiate("APP-1", "APP", args)
         b.appPublish("/index.html", "APP-1")

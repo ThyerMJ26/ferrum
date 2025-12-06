@@ -1182,6 +1182,8 @@ let prims: CPrims = {
     "Unknown": natExpr(rType, cCode("(Type){}")),
 
     "fix": erPrim(primCb, "fix", [rAny, rAny], rAny),
+    // TODO Handle the new "fix2" primitive.
+    // "fix2": erPrim(primCb, "fix2", [rAny, rAny], rAny),
 
     "ifNil": erPrim(primCb, "any_ifNil", [rAny, rAny], rAny),
     "testIsNil": erPrim(primCb, "any_ifNil", [rAny, rAny], rAny),

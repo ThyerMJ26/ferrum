@@ -21,6 +21,7 @@ import {
     typeHd, typeTl, typeElem,
     typeInverse, typeInverseApply, applyTypes,
 } from "../tree/types.js";
+import { eVar } from "../syntax/expr.js";
 
 // import { runtimeUtils, primitivesCore } from "../runtime/runtime-core.js"
 
@@ -187,6 +188,14 @@ function mkConstPrim(a: any) {
 function applyPrim2(args: Node[]): Node {
     const [a, b] = args
     return apply(a, b)
+}
+
+// A non-blocking implementation of the block-until primitive.
+function blockUntilPrim(args: Node[]): Node {
+    const [a] = args
+    // Ignore the argument, and return the identity function.
+    const x = eVar({ loc: null }, "a")
+    return node(closureValue({}, x, x))
 }
 
 function mkTypePrim(ty: Type) {
@@ -677,8 +686,14 @@ const primTable: PrimTable = {
     "true": [0, mkConstPrim(true), boolT],
 
 
-    // specializing application
+    // Specializing application.
+    // There is (currently) no runtime specialization, 
+    //   so this is implemented as conventional application)
     "(<$)": [2, applyPrim2, funPT("F", funT(voidT, anyT), funPT("A", ruleT('domainT', [varT('F')]), ruleT('applyT', [varT('F'), varT('A')])))],
+    // block-reduction-until, so as to conditionally stop-specializing.
+    // This can just immediately return the identity function,
+    //   as no specialization (currently) occurs at runtime.
+    "(_$?)": [1, blockUntilPrim, funT(anyT, funPT("X", anyT, varT("X")))],
 
 
     "{|}": [2, mkTypeFunc2Prim(unionTypes), funT(typeT, funT(typeT, typeT))],
@@ -727,6 +742,11 @@ const primTable: PrimTable = {
     "typeOf": [1, mkUnaryFunction2(a => null), funT(anyT, typeT)],
 
     "fix": [2, fixPrim2
+        , funPT("F"
+            , funT(funT(anyT, voidT), ruleT('domainT', [varT('F')]))
+            , ruleT('rangeT', [varT('F')]))
+    ],
+    "fix2": [2, fixPrim2
         , funPT("F"
             , funT(funT(anyT, voidT), ruleT('domainT', [varT('F')]))
             , ruleT('rangeT', [varT('F')]))

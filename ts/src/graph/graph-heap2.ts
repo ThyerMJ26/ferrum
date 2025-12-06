@@ -92,8 +92,12 @@ export function isAddrYes(addrMb: AddrMb): addrMb is Addr {
     return addrMb >= 0
 }
 export function isAddrNo(addrMb: AddrMb): addrMb is AddrNo {
-    return addrMb === noAddr
+    return addrMb === addrNo
 }
+// export function addrOr<T extends Addr>(addr1: T | AddrNo, addr2: T): T {
+//     return isAddrYes(addr1) ? addr1 : addr2
+// } 
+
 
 
 // A second level of maybe-ness
@@ -115,11 +119,6 @@ export function isAddrFail(addrTry: AddrMbTry): addrTry is AddrFail {
     return addrTry === addrFail
 }
 
-
-
-
-export const noDepth = -1 as DepthNo
-export const noAddr = -1 as AddrNo
 
 
 /** Address Query: An address being queried, this is used as the argument type to all the is??? functions
@@ -560,11 +559,11 @@ export type Heap = {
 
 
 
-    tyVar(depth: Depth, type?: TypeAddrMb): Addr_of_TyVar
+    tyVar(depth: Depth, type?: TypeAddrMb, form?: TargetForm): Addr_of_TyVar
     isTyVar(a: AddrQ): a is Addr_of_TyVar
 
 
-    tyApply(func: TypeAddr, argTy: TypeAddr, depth?: Depth, type?: TypeAddrMb): TypeAddr
+    tyApply(func: TypeAddr, argTy: TypeAddr, depth?: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
     isTyApply(ty: Addr): ty is Addr_of_TyApply
     fun_ty(app: Addr_of_TyApply): TypeAddr
     arg_ty(app: Addr_of_TyApply): TypeAddr
@@ -573,31 +572,31 @@ export type Heap = {
     argTy_of(app: Addr_of_TyApply): TypeAddr
 
 
-    tyFun(no: TypeAddrMb, yes: TypeAddrMb, dom: TypeAddr, cod: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
+    tyFun(no: TypeAddrMb, yes: TypeAddrMb, dom: TypeAddr, cod: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
 
-    tyPrim0(name: TyPrim0, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyPrim1(name: TyPrim1Tm, arg0: Addr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyPrim1(name: TyPrim1Ty, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyPrim1(name: TyPrim1, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyPrim2(name: TyPrim2, arg0: TypeAddr, arg1: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyPrim3(name: TyPrim3, arg0: TypeAddr, arg1: TypeAddr, arg2: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
+    tyPrim0(name: TyPrim0, depth: Depth, type?: TypeAddrMb, form?: TargetForm): Addr_of_TyPrim0
+    tyPrim1(name: TyPrim1Tm, arg0: Addr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyPrim1(name: TyPrim1Ty, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyPrim1(name: TyPrim1, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyPrim2(name: TyPrim2, arg0: TypeAddr, arg1: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyPrim3(name: TyPrim3, arg0: TypeAddr, arg1: TypeAddr, arg2: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
 
-    tyOp1(name: TyOp1, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyOp2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
+    tyOp1(name: TyOp1, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyOp2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
 
-    tyCon1(name: TyOp1, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyCon2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
+    tyCon1(name: TyOp1, arg0: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyCon2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
 
     tySingleStr(name: string): Addr_of_TySingleStr
-    tyPair(hd: TypeAddr, tl: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyUnion(a: TypeAddr, b: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyIntersect(a: TypeAddr, b: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyRelComp(a: TypeAddr, b: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyHead(pairTy: TypeAddr, depth: DepthMb, type?: TypeAddrMb): TypeAddr
-    tyTail(pairTy: TypeAddr, depth: DepthMb, type?: TypeAddrMb): TypeAddr
-    tyDom(funTy: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyCod(funTy: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
-    tyElem(listTy: TypeAddr, depth: Depth, type?: TypeAddrMb): TypeAddr
+    tyPair(hd: TypeAddr, tl: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyUnion(a: TypeAddr, b: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyIntersect(a: TypeAddr, b: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyRelComp(a: TypeAddr, b: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyHead(pairTy: TypeAddr, depth: DepthMb, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyTail(pairTy: TypeAddr, depth: DepthMb, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyDom(funTy: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyCod(funTy: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
+    tyElem(listTy: TypeAddr, depth: Depth, type?: TypeAddrMb, form?: TargetForm): TypeAddr
 
 
     isTySingleStr(a: AddrQ): a is Addr_of_TySingleStr
@@ -611,7 +610,7 @@ export type Heap = {
 
     // Generic Term/Type Prim/Op primitive/builtin construction and access
     // prim(name: TyPrim, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_TyPrim
-    prim(name: Prim, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_Prim
+    prim(name: Prim, args: Addr[], depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_Prim
 
     isPrim(name: null, a: AddrQ): a is Addr_of_Prim
     isPrim(name: TyPrim0, a: AddrQ): a is Addr_of_TyPrim0
@@ -701,7 +700,7 @@ export type Heap = {
     isTyPrimOneOf2(name: readonly TyPrim[]): (a: AddrQ) => a is Addr_of_TyPrim
 
     // TyOp
-    tyPrim0(name: TyPrim0, depth: Depth, type?: TypeAddrMb): Addr_of_TyPrim0
+    tyPrim0(name: TyPrim0, depth: Depth, type?: TypeAddrMb, form?: TargetForm): Addr_of_TyPrim0
     isTyOp(name: TyOp, a: Addr): a is Addr_of_TyOp
     isTyOp1(addr: AddrQ): addr is Addr_of_TyOp1
     isTyOp2(addr: AddrQ): addr is Addr_of_TyOp2
@@ -723,7 +722,7 @@ export type Heap = {
     dom_ty(addr: Addr_of_TyFun): TypeAddr
     cod_ty(addr: Addr_of_TyFun): TypeAddr
 
-    tmVar(path: number[], depth: Depth, type: TypeAddr): Addr_of_TmVar
+    tmVar(path: number[], depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmVar
     isTmVar(a: AddrQ): a is Addr_of_TmVar
     path_tm(addr: Addr_of_TmVar): number[]
 
@@ -732,7 +731,7 @@ export type Heap = {
     // isTmVar(a: AddrQ): a is Addr_of_TmVar
     // path_tm(addr: Addr_of_TmVar): PathKey
 
-    tmAs(var1: Addr, pat: Addr, depth: Depth, type: TypeAddr): Addr_of_TmAs
+    tmAs(var1: Addr, pat: Addr, depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmAs
     isTmAs(a: AddrQ): a is Addr_of_TmAs
     var_tm(addr: Addr_of_TmAs): Addr
     pat_tm(addr: Addr_of_TmAs): Addr
@@ -744,29 +743,29 @@ export type Heap = {
     // pat_tm(addr: Addr_of_TmAs): Addr
 
 
-    tmLam(no: Bool, yes: Bool, pat: Addr, body: Addr, depth: Depth, type: TypeAddr): Addr
+    tmLam(no: Bool, yes: Bool, pat: Addr, body: Addr, depth: Depth, type: TypeAddr, form?: TargetForm): Addr
     isTmLam(a: AddrQ): a is Addr_of_TmLambda
     no_tm(addr: Addr_of_TmLambda): Bool
     yes_tm(addr: Addr_of_TmLambda): Bool
     pat_tm(addr: Addr_of_TmLambda): Addr
     body_tm(addr: Addr_of_TmLambda): Addr
 
-    tmDatum(datum: Datum, depth?: Depth, type?: TypeAddr): Addr_of_TmDatum
+    tmDatum(datum: Datum, depth?: Depth, type?: TypeAddr, form?: TargetForm): Addr_of_TmDatum
     isTmDatum(addr: AddrQ): addr is Addr_of_TmDatum
     datum_tm(addr: Addr_of_TmDatum): Datum
 
-    tmPair(hd: Addr, tl: Addr, depth: Depth, type?: TypeAddr): Addr_of_TmPair
+    tmPair(hd: Addr, tl: Addr, depth: Depth, type?: TypeAddr, form?: TargetForm): Addr_of_TmPair
     isTmPair(addr: AddrQ): addr is Addr_of_TmPair
     hd_tm(addr: Addr_of_TmPair): Addr
     tl_tm(addr: Addr_of_TmPair): Addr
 
-    tmApply(fun: Addr, arg: Addr, depth: Depth, type?: TypeAddr): Addr_of_TmApply
+    tmApply(fun: Addr, arg: Addr, depth: Depth, type?: TypeAddr, form?: TargetForm): Addr_of_TmApply
     isTmApply(addr: AddrQ): addr is Addr_of_TmApply
     fun_tm(addr: Addr_of_TmApply): Addr
     arg_tm(addr: Addr_of_TmApply): Addr
 
     // TmPrim
-    tmPrim(name: string, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_TmPrim
+    tmPrim(name: string, args: Addr[], depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmPrim
     isTmPrim(name: string | null, addr: Addr): addr is Addr_of_TmPrim
     isTmPrim0(addr: AddrQ): addr is Addr_of_TmPrim0
     isTmPrim1(addr: AddrQ): addr is Addr_of_TmPrim1
@@ -794,9 +793,9 @@ export type Heap = {
     // arg2_tm(addr: Addr_of_TmPrim3): Addr
 
     // TmOp
-    tmOp0(name: string, depth: Depth, type: TypeAddr): Addr_of_TmOp0
-    tmOp1(name: string, arg0: Addr, depth: Depth, type: TypeAddr): Addr_of_TmOp1
-    tmOp2(name: string, arg0: Addr, arg1: Addr, depth: Depth, type: TypeAddr): Addr_of_TmOp2
+    tmOp0(name: string, depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmOp0
+    tmOp1(name: string, arg0: Addr, depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmOp1
+    tmOp2(name: string, arg0: Addr, arg1: Addr, depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmOp2
     isTmOp1(addr: AddrQ): addr is Addr_of_TmOp1
     isTmOp2(addr: AddrQ): addr is Addr_of_TmOp2
     isTmOp(name: TmOp1, addr: Addr): addr is Addr_of_TmOp1
@@ -807,7 +806,7 @@ export type Heap = {
     arg0_tm(addr: Addr_of_TmOp2): Addr
     arg1_tm(addr: Addr_of_TmOp2): Addr
 
-    tmTyAnnot(term: Addr, depth: Depth, type: TypeAddr): Addr_of_TmTyAnnot
+    tmTyAnnot(term: Addr, depth: Depth, type: TypeAddr, form?: TargetForm): Addr_of_TmTyAnnot
     isTmTyAnnot(addr: AddrQ): addr is Addr_of_TmTyAnnot
     term_tm(addr: Addr_of_TmTyAnnot): Addr
 

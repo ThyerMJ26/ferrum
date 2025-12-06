@@ -14,7 +14,7 @@ import {
     Addr_of_TyOp1, Addr_of_TyOp2, Addr_of_TyPair, Addr_of_TySingleStr, Addr_of_TyVar, Bool,
     DepthMb, Heap, Path, PathKey, PathSegment, TypeAddrMb,
     Visitor, NodeTransformer,
-    isAddrNo, isAddrYes, noAddr, noDepth, AddrNo, Addr_of_TyPrim, VisitorWithDefaults,
+    isAddrNo, isAddrYes, addrNo, depthNo, AddrNo, Addr_of_TyPrim, VisitorWithDefaults,
     TyPrim0, TyPrim2TyTy, TyOp,
     TyOp1, TyOp2,
     TmOp2, TmOp1, TmOp,
@@ -22,8 +22,6 @@ import {
     Form,
     TargetForm,
     Addr_of_TmTyAnnot,
-    addrNo,
-    depthNo,
     NodeWalker,
     NodeTransformerWithDefaults,
     Addr_of_HoleTmp,
@@ -76,6 +74,7 @@ import {
 
 //#region Interface
 
+// Array of Union of Structs
 export function mkHeap_AoUoS(): Heap {
 
     type AddrMemo = {
@@ -87,7 +86,7 @@ export function mkHeap_AoUoS(): Heap {
     const contents: Entry[] = []
 
 
-    const typeOfType = heap_allocType(depthZero, { tag: "Prim", cons: false, name: "Type", args: [] }, addrTypeType)
+    const typeOfType = heap_allocType(depthZero, { tag: "Prim", cons: false, name: "Type", args: [] }, addrTypeType, formWeak)
     assert.isTrue(typeOfType === addrTypeType)
 
 
@@ -227,7 +226,7 @@ export function mkHeap_AoUoS(): Heap {
             return []
         }
         const parts = nodeParts(node)
-        return parts.addrs.map(a => a === null ? noAddr : a)
+        return parts.addrs.map(a => a === null ? addrNo : a)
     }
     function allAddrs(): Addr[] {
         return Array.from({ length: heapSize() }, (_, i) => i as Addr)
@@ -795,15 +794,15 @@ export function mkHeap_AoUoS(): Heap {
     function translateAddrMb<T extends AddrMb>(type: AddrMb): T | null
     function translateAddrMb<T extends AddrMb>(type: Addr | null): Exclude<T, AddrMb>
     function translateAddrMb<T extends AddrMb>(type: AddrMb | null): AddrMb | null {
-        if (type === null) return noAddr
-        if (type === noAddr) return null
+        if (type === null) return addrNo
+        if (type === addrNo) return null
         return type
     }
     function translateTypeAddrMb<T extends TypeAddrMb>(type: TypeAddrMb): Exclude<T, AddrNo> | null
     function translateTypeAddrMb<T extends TypeAddrMb>(type: Exclude<T, AddrNo> | null): T
     function translateTypeAddrMb<T extends TypeAddrMb>(type: TypeAddrMb | null): TypeAddrMb | null {
-        if (type === null) return noAddr
-        if (type === noAddr) return null
+        if (type === null) return addrNo
+        if (type === addrNo) return null
         return type
     }
     function translateBool(b: boolean): Bool
@@ -819,56 +818,56 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tyHead(pairTy: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyHead(pairTy: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, pairTy)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name: "Hd", args: [pairTy] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name: "Hd", args: [pairTy] }, type, form)
     }
-    function tyTail(pairTy: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyTail(pairTy: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, pairTy)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name: "Tl", args: [pairTy] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name: "Tl", args: [pairTy] }, type, form)
     }
 
 
-    function tyPair(hd: TypeAddr, tl: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyPair(hd: TypeAddr, tl: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, hd, tl)
         type = defaultType(type)
-        let pairType = heap_allocType(depth, { tag: "TyPair", hd: hd, tl: tl }, type)
+        let pairType = heap_allocType(depth, { tag: "TyPair", hd: hd, tl: tl }, type, form)
         return pairType
     }
-    function tyUnion(a: TypeAddr, b: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyUnion(a: TypeAddr, b: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, a, b)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name: "{|}", args: [a, b] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name: "{|}", args: [a, b] }, type, form)
     }
-    function tyIntersect(a: TypeAddr, b: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyIntersect(a: TypeAddr, b: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, a, b)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name: "{&}", args: [a, b] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name: "{&}", args: [a, b] }, type, form)
     }
-    function tyRelComp(a: TypeAddr, b: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyRelComp(a: TypeAddr, b: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, a, b)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name: "{\\}", args: [a, b] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name: "{\\}", args: [a, b] }, type, form)
     }
-    function tyFun(no: TypeAddrMb, yes: TypeAddrMb, dom: TypeAddr, cod: TypeAddr, depth: Depth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyFun(no: TypeAddrMb, yes: TypeAddrMb, dom: TypeAddr, cod: TypeAddr, depth: Depth, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         // depth = defaultDepth(depth, no, yes, dom, cod)
         type = defaultType(type)
-        let funType = heap_allocType(depth, { tag: "TyFun", no: translateAddrMb(no), yes: translateAddrMb(yes), dom: dom, cod: cod }, type)
+        let funType = heap_allocType(depth, { tag: "TyFun", no: translateAddrMb(no), yes: translateAddrMb(yes), dom: dom, cod: cod }, type, form)
         type = defaultType(type)
         return funType
     }
-    function tyDom(funTy: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyDom(funTy: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         return tyPrim1("Dom", funTy, depth, type)
         // depth = maxDepth1(depth, funTy)
         // let domType = heap_allocType(depth, { tag: "TyOp1", name: "Dom", args: [funTy] }, type)
     }
-    function tyCod(funTy: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyCod(funTy: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         return tyPrim1("Cod", funTy, depth, type)
     }
 
-    function tyElem(funTy: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyElem(funTy: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         return tyPrim1("Elem", funTy, depth, type)
     }
 
@@ -878,10 +877,10 @@ export function mkHeap_AoUoS(): Heap {
 
 
 
-    function tyApply(func: TypeAddr, argTy: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyApply(func: TypeAddr, argTy: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, func, argTy)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "TyApply", func: func, arg: argTy }, type)
+        return heap_allocType(depth, { tag: "TyApply", func: func, arg: argTy }, type, form)
     }
     function isTyApply(ty: Addr): ty is Addr_of_TyApply {
         const a = getNode(ty)
@@ -979,8 +978,8 @@ export function mkHeap_AoUoS(): Heap {
     // Generic Term/Type Prim/Op primitive/builtin construction and access
     // function prim(name: TyPrim, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_TyPrim 
     // function prim(name: Prim, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_Prim
-    function prim(name: Prim, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_Prim {
-        return heap_alloc(depth, { tag: "Prim", cons: false, name, args } as any, type) as Addr_of_Prim
+    function prim(name: Prim, args: Addr[], depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_Prim {
+        return heap_alloc(depth, { tag: "Prim", cons: false, name, args } as any, type, form) as Addr_of_Prim
     }
 
     function isPrim(name: null, a: AddrQ): a is Addr_of_Prim
@@ -1063,50 +1062,50 @@ export function mkHeap_AoUoS(): Heap {
 
 
 
-    function tyPrim0(name: TyPrim0, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): Addr_of_TyPrim0 {
+    function tyPrim0(name: TyPrim0, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): Addr_of_TyPrim0 {
         depth = defaultDepth(depth)
         type = defaultType(type)
-        return heap_alloc(depth, { tag: "Prim", cons: false, name, args: [] }, type) as Addr_of_TyPrim0
+        return heap_alloc(depth, { tag: "Prim", cons: false, name, args: [] }, type, form) as Addr_of_TyPrim0
     }
 
-    function tyPrim1(name: TyPrim1, arg0: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyPrim1(name: TyPrim1, arg0: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name, args: [arg0] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name, args: [arg0] }, type, form)
     }
-    function tyPrim2(name: TyPrim2, arg0: TypeAddr, arg1: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyPrim2(name: TyPrim2, arg0: TypeAddr, arg1: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0, arg1)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name, args: [arg0, arg1] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name, args: [arg0, arg1] }, type, form)
     }
-    function tyPrim3(name: TyPrim3, arg0: TypeAddr, arg1: TypeAddr, arg2: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyPrim3(name: TyPrim3, arg0: TypeAddr, arg1: TypeAddr, arg2: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0, arg1)
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "Prim", cons: false, name, args: [arg0, arg1, arg2] }, type)
+        return heap_allocType(depth, { tag: "Prim", cons: false, name, args: [arg0, arg1, arg2] }, type, form)
     }
 
 
-    function tyOp1(name: TyOp1, arg0: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyOp1(name: TyOp1, arg0: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0)
         type = defaultType(type)
-        return heap_alloc(depth, { tag: "Prim", cons: false, name, args: [arg0] }, type) as TypeAddr
+        return heap_alloc(depth, { tag: "Prim", cons: false, name, args: [arg0] }, type, form) as TypeAddr
     }
-    function tyOp2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyOp2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0, arg1)
         type = defaultType(type)
-        return heap_alloc(depth, { tag: "Prim", cons: false, name, args: [arg0, arg1] }, type) as TypeAddr
+        return heap_alloc(depth, { tag: "Prim", cons: false, name, args: [arg0, arg1] }, type, form) as TypeAddr
     }
 
     // A type-constructor is now a type-operator that is considered fully-reduced, without actually being reduced.
-    function tyCon1(name: TyOp1, arg0: TypeAddr, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): TypeAddr {
+    function tyCon1(name: TyOp1, arg0: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0)
         type = defaultType(type)
-        return heap_alloc(depth, { tag: "Prim", cons: true, name, args: [arg0] }, type) as TypeAddr
+        return heap_alloc(depth, { tag: "Prim", cons: true, name, args: [arg0] }, type, form) as TypeAddr
     }
-    function tyCon2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo): TypeAddr {
+    function tyCon2(name: TyOp2, arg0: TypeAddr, arg1: TypeAddr, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): TypeAddr {
         depth = defaultDepth(depth, arg0, arg1)
         type = defaultType(type)
-        return heap_alloc(depth, { tag: "Prim", cons: true, name, args: [arg0, arg1] }, type) as TypeAddr
+        return heap_alloc(depth, { tag: "Prim", cons: true, name, args: [arg0, arg1] }, type, form) as TypeAddr
     }
 
 
@@ -1266,9 +1265,9 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tyVar(depth: Depth, type: TypeAddrMb): Addr_of_TyVar {
+    function tyVar(depth: Depth, type: TypeAddrMb, form: TargetForm = formWeak): Addr_of_TyVar {
         type = defaultType(type)
-        return heap_allocType(depth, { tag: "TyVar" }, type) as Addr_of_TyVar
+        return heap_allocType(depth, { tag: "TyVar" }, type, form) as Addr_of_TyVar
     }
     function isTyVar(addr: Addr): addr is Addr_of_TyVar {
         const a = getNode(addr)
@@ -1276,8 +1275,8 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tmVar(path: number[], depth: Depth, type: TypeAddr): Addr_of_TmVar {
-        return heap_alloc(depth, { tag: "TmVar", path }, type) as Addr_of_TmVar
+    function tmVar(path: number[], depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmVar {
+        return heap_alloc(depth, { tag: "TmVar", path }, type, form) as Addr_of_TmVar
     }
     function isTmVar(addr: Addr): addr is Addr_of_TmVar {
         const a = getNode(addr)
@@ -1289,8 +1288,8 @@ export function mkHeap_AoUoS(): Heap {
         return a.path
     }
 
-    function tmAs(var1: Addr, pat: Addr, depth: Depth, type: TypeAddr): Addr_of_TmAs {
-        return heap_alloc(depth, { tag: "TmAs", var: var1, pat }, type) as Addr_of_TmAs
+    function tmAs(var1: Addr, pat: Addr, depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmAs {
+        return heap_alloc(depth, { tag: "TmAs", var: var1, pat }, type, form) as Addr_of_TmAs
     }
     function isTmAs(addr: Addr): addr is Addr_of_TmAs {
         const a = getNode(addr)
@@ -1303,8 +1302,8 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tmLam(no: Bool, yes: Bool, pat: Addr, body: Addr, depth: Depth, type: TypeAddr): Addr {
-        return heap_alloc(depth, { tag: "TmLambda", no: translateBool(no), yes: translateBool(yes), pat, body }, type)
+    function tmLam(no: Bool, yes: Bool, pat: Addr, body: Addr, depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr {
+        return heap_alloc(depth, { tag: "TmLambda", no: translateBool(no), yes: translateBool(yes), pat, body }, type, form)
     }
 
     function isTmLam(addr: Addr): addr is Addr_of_TmLambda {
@@ -1336,7 +1335,7 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tmApply(fun: Addr, arg: Addr, depth: Depth, type: TypeAddrMb = noAddr): Addr_of_TmApply {
+    function tmApply(fun: Addr, arg: Addr, depth: Depth, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): Addr_of_TmApply {
         if (isAddrNo(type)) {
             const funTy = typeOf(fun)
             // TODO ? Do we want to use the more precise dependent type application by default ?
@@ -1346,7 +1345,7 @@ export function mkHeap_AoUoS(): Heap {
             type = tyApply(funTy, argTy)
             // type = tyApplyTyTm(type_of(fun), arg)
         }
-        return heap_alloc(depth, { tag: "TmApply", func: fun, arg }, type) as Addr_of_TmApply
+        return heap_alloc(depth, { tag: "TmApply", func: fun, arg }, type, form) as Addr_of_TmApply
     }
     function isTmApply(addr: Addr): addr is Addr_of_TmApply {
         const a = getNode(addr)
@@ -1363,11 +1362,11 @@ export function mkHeap_AoUoS(): Heap {
         return a.arg
     }
 
-    function tmPair(hd: Addr, tl: Addr, depth: Depth, type: TypeAddrMb = noAddr): Addr_of_TmPair {
+    function tmPair(hd: Addr, tl: Addr, depth: Depth, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): Addr_of_TmPair {
         if (isAddrNo(type)) {
             type = tyPair(typeOf(hd), typeOf(tl))
         }
-        return heap_alloc(depth, { tag: "TmPair", hd, tl }, type) as Addr_of_TmPair
+        return heap_alloc(depth, { tag: "TmPair", hd, tl }, type, form) as Addr_of_TmPair
     }
     function isTmPair(addr: Addr): addr is Addr_of_TmPair {
         const a = getNode(addr)
@@ -1384,11 +1383,11 @@ export function mkHeap_AoUoS(): Heap {
         return a.tl
     }
 
-    function tmDatum(datum: Datum, depth: Depth = depthZero, type: TypeAddrMb = noAddr): Addr_of_TmDatum {
+    function tmDatum(datum: Datum, depth: Depth = depthZero, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): Addr_of_TmDatum {
         if (isAddrNo(type)) {
             type = defaultType_for_datum(datum)
         }
-        return heap_alloc(depth, { tag: "TmDatum", value: datum }, type) as Addr_of_TmDatum
+        return heap_alloc(depth, { tag: "TmDatum", value: datum }, type, form) as Addr_of_TmDatum
     }
     function isTmDatum(addr: Addr): addr is Addr_of_TmDatum {
         const a = getNode(addr)
@@ -1401,8 +1400,8 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tmPrim(name: string, args: Addr[], depth: Depth, type: TypeAddr): Addr_of_TmPrim {
-        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: args }, type) as Addr_of_TmPrim
+    function tmPrim(name: string, args: Addr[], depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmPrim {
+        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: args }, type, form) as Addr_of_TmPrim
     }
     function isTmPrim(name: TmPrim | null, addr: Addr): addr is Addr_of_TmPrim {
         const a = getNode(addr)
@@ -1426,14 +1425,14 @@ export function mkHeap_AoUoS(): Heap {
     }
 
 
-    function tmOp0(name: string, depth: Depth, type: TypeAddr): Addr_of_TmOp0 {
-        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: [] }, type) as Addr_of_TmOp0
+    function tmOp0(name: string, depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmOp0 {
+        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: [] }, type, form) as Addr_of_TmOp0
     }
-    function tmOp1(name: string, arg0: Addr, depth: Depth, type: TypeAddr): Addr_of_TmOp1 {
-        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: [arg0] }, type) as Addr_of_TmOp1
+    function tmOp1(name: string, arg0: Addr, depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmOp1 {
+        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: [arg0] }, type, form) as Addr_of_TmOp1
     }
-    function tmOp2(name: string, arg0: Addr, arg1: Addr, depth: Depth, type: TypeAddr): Addr_of_TmOp2 {
-        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: [arg0, arg1] }, type) as Addr_of_TmOp2
+    function tmOp2(name: string, arg0: Addr, arg1: Addr, depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmOp2 {
+        return heap_alloc(depth, { tag: "Prim", name, cons: false, args: [arg0, arg1] }, type, form) as Addr_of_TmOp2
     }
     function isTmOp(name: TmOp1, addr: Addr): addr is Addr_of_TmOp1
     function isTmOp(name: TmOp2, addr: Addr): addr is Addr_of_TmOp2
@@ -1473,8 +1472,8 @@ export function mkHeap_AoUoS(): Heap {
         return a.args[2]!
     }
 
-    function tmTyAnnot(term: Addr, depth: Depth, type: TypeAddr): Addr_of_TmTyAnnot {
-        return heap_alloc(depth, { tag: "TmTyAnnot", term }, type) as Addr_of_TmTyAnnot
+    function tmTyAnnot(term: Addr, depth: Depth, type: TypeAddr, form: TargetForm = formWeak): Addr_of_TmTyAnnot {
+        return heap_alloc(depth, { tag: "TmTyAnnot", term }, type, form) as Addr_of_TmTyAnnot
     }
     function isTmTyAnnot(addr: Addr): addr is Addr_of_TmTyAnnot {
         const a = getNode(addr)
@@ -1491,10 +1490,10 @@ export function mkHeap_AoUoS(): Heap {
         return isTyPrim("Void", addr)
     }
 
-    function tySingleStr(value: string, depth: DepthMb = noDepth, type: TypeAddrMb = noAddr): Addr_of_TySingleStr {
+    function tySingleStr(value: string, depth: DepthMb = depthNo, type: TypeAddrMb = addrNo, form: TargetForm = formWeak): Addr_of_TySingleStr {
         depth = defaultDepth(depth)
         type = defaultType(type)
-        return heap_alloc(depth, { tag: "TySingleStr", value }, type) as Addr_of_TySingleStr
+        return heap_alloc(depth, { tag: "TySingleStr", value }, type, form) as Addr_of_TySingleStr
     }
     function isTySingleStr(addr: Addr): addr is Addr_of_TySingleStr {
         const a = getNode(addr)
@@ -1988,7 +1987,8 @@ export function mkHeap_AoUoS(): Heap {
 
 
 
-    function heap_alloc(depth: Depth, node: Node, ty: TypeAddr, targetForm: TargetForm = formWeak): Addr {
+    // function heap_alloc(depth: Depth, node: Node, ty: TypeAddr, targetForm: TargetForm = formWeak): Addr {
+    function heap_alloc(depth: Depth, node: Node, ty: TypeAddr, targetForm: TargetForm): Addr {
 
         if (contents.length > 0) {
             // The first entry in the heap is "Type" which is its own type.
@@ -2051,8 +2051,9 @@ export function mkHeap_AoUoS(): Heap {
         return addrMemo.addr
     }
 
-    function heap_allocType(depth: Depth, node: TypeNode, ty: TypeAddr): TypeAddr {
-        return heap_alloc(depth, node, ty) as TypeAddr
+    // function heap_allocType(depth: Depth, node: TypeNode, ty: TypeAddr, form: TargetForm = formWeak): TypeAddr {
+    function heap_allocType(depth: Depth, node: TypeNode, ty: TypeAddr, form: TargetForm): TypeAddr {
+        return heap_alloc(depth, node, ty, form) as TypeAddr
     }
 
     function heap_link(from: Addr, to: Addr): unit {

@@ -2,7 +2,7 @@ import { assert } from "../utils/assert.js"
 import {
     Addr, Depth, TypeAddr, depthInc, AddrMb, AddrNo,
     Addr_of_TmVar, Addr_of_TyVar, Heap, PathKey, NodeTransformer, TypeAddrMb,
-    Visitor, isAddrNo, noAddr,
+    Visitor, isAddrNo, addrNo,
     depthZero,
     Addr_of_TmLambda,
     formStrong,
@@ -14,7 +14,7 @@ import {
     NodeTransformerTry,
     isAddrOk,
     addrFail,
-    noDepth,
+    depthNo,
 } from "../graph/graph-heap2.js"
 
 
@@ -215,12 +215,12 @@ export function mkSubstitute(h: Heap): Substitute {
                         let numTls = Math.abs(segment)
                         let numHds = segment < 0 ? 0 : 1
                         while (numTls-- !== 0) {
-                            resultTy = h.tyTail(resultTy, noDepth)
+                            resultTy = h.tyTail(resultTy, depthNo)
                             assumeIsType(resultTy)
                             result = h.tmOp1("tl", result, appDepth, resultTy)
                         }
                         while (numHds-- !== 0) {
-                            resultTy = h.tyHead(resultTy, noDepth)
+                            resultTy = h.tyHead(resultTy, depthNo)
                             assumeIsType(resultTy)
                             result = h.tmOp1("hd", result, appDepth, resultTy)
                         }

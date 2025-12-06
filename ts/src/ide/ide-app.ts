@@ -37,7 +37,7 @@ import {
 import { showMbLoc } from "../tree/eval.js";
 
 // Graph
-import { Addr, Depth, depthZero, formNone, formWeak, noAddr, TypeAddr } from "../graph/graph-heap2.js";
+import { Addr, Depth, depthZero, formNone, formWeak, addrNo, TypeAddr } from "../graph/graph-heap2.js";
 import { ExprTypeGraph } from "../graph/graph-instantiate.js";
 import {
     collectHeapDisplayInfo, HeapShowInfo, heapStyleDefns, showGraph, showTi_addr, showTi_expr, showTi_ruleName, showTi_value, tiEntryStyleDefns

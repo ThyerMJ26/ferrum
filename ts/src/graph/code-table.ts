@@ -760,26 +760,12 @@ export function mkCodeTable(opts: CodeTableOpts): CodeTable {
 
     const essential: string[] = [
         "primitive",
-
-        "(+)",
-        "(-)",
-        "(*)",
-        "(==)",
-        "(>)",
-        "(>=)",
-        "(<)",
-        "(<=)",
-        "(&&)",
-        "(||)",
-
-        "(<$)",
-
-        "(|-)",
-        "(|=)",
-
-        "{&}",
-        "{|}",
-        "{\\}",
+        "(+)", "(-)", "(*)",
+        "(==)", "(>)", "(>=)", "(<)", "(<=)",
+        "(&&)", "(||)",
+        "(<$)", "(_$?)",
+        "(|-)", "(|=)",
+        "{&}", "{|}", "{\\}",
     ]
     for (const p of essential) {
         initEnv[p] = primEnv[p]
@@ -912,7 +898,7 @@ function graphInit(g: Graph, opts: GraphOptions): unit {
     g.primitives = mkPrims()
     g.subst = mkSubstitute(g.heap)
     g.pred = graphPredicatesMk(g.heap)
-    
+
     g.tis = mkTiStructuralFuncs(g.heap, g.pred)
     g.tiRules = mkTiRules(g.heap, g.tim, g.pred, g.tis)
     g.ga = mkGraphApply(g.heap, g.subst, g.pred, g.tis)

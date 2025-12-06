@@ -4,7 +4,7 @@ import { mkEnv } from "../utils/env.js";
 
 import {
     Addr, Depth, TypeAddr, TyPrim0, Heap,
-    depthInc, false0, depthZero, DirectAddr, noAddr,
+    depthInc, false0, depthZero, DirectAddr,
     isAddrNo, addrNo, AddrQ, Visitor, isAddrYes, VisitorWithDefaults,
     Addr_of_TmLambda, depthMax2, depthMax, NodeWalker,
     WorS,
@@ -31,6 +31,7 @@ import { GraphApply } from "./graph-apply.js";
 import { isAlpha, scan2Fe } from "../syntax/scan.js";
 import { ParseState } from "../syntax/parse.js";
 import { parseTerm, parseType } from "../syntax/parseFerrum2.js";
+import { mkGraphBuilder } from "./graph-builder.js";
 
 
 // TODO ? Actions which drop references (beneath lambdas) need someway to record these as obligations.
@@ -81,6 +82,8 @@ export function isArUpdate(ar: ActionResult): ar is Addr {
     return typeof ar === "number"
 }
 
+// TODO ? Rather than pass in depth and form separately,
+// TODO ?   pass in an instance of the new GraphBuilder interface ?
 type Action = (depth: Depth, args: Addr[], targetForm: TargetForm) => ActionResult
 
 type TypeAction = Action
@@ -191,6 +194,22 @@ export function mkPrims(): Primitives {
             let type = inst.instType(primitives, env, depthZero, parsedExp, typeType, performTypeCheck)
             return type
         }
+
+        let parseTm = (typeStr: string): Addr => {
+            let expTokens = scan2Fe("", typeStr, null, [])
+            let expPS = new ParseState(expTokens)
+            let parsedExp = parseType(expPS, "ferrum/0.1")
+            const performTypeCheck = true
+            let type = inst.instTerm(primitives, env, depthZero, parsedExp, typeType, performTypeCheck)
+            return type
+        }
+
+        // We cannot call this until the cyclic dependency involving the "{\\}" primitive has been resolved.
+        // This currently happens in graph-ti-calc.ts mkTiCalcFuncs.
+        // Calling identityFunc repeatedly seems a bit wasteful.
+        // TODO ? Resolve the "{\\}" cycle earlier ?
+        // const identityFunc = parseTm("(x : X @ Any) -> x")
+        const identityFunc = () => parseTm("(x : X @ Any) -> x")
 
 
         defPrimitiveType("Void")
@@ -995,7 +1014,7 @@ export function mkPrims(): Primitives {
                     const a_tl = dOf(tl_ty(a))
                     const b_hd = dOf(hd_ty(b))
                     const b_tl = dOf(tl_ty(b))
-                    
+
                     const inHd = tyOp2("{&}", a_hd, b_hd, depth)
                     const inTl = tyOp2("{&}", a_tl, b_tl, depth)
 
@@ -3054,6 +3073,50 @@ export function mkPrims(): Primitives {
             }
         })
 
+        // A blocking variant of "fix".
+        // Reduction blocks until "x" is more interesting than a variable.
+        // fix f x = f (x -> fix f x) x
+        // builtinId("fix2", [weak, weak], parseTy("{ F @ { { Any -> Void } -> (Dom F) } -> (Cod F) }"), (depth, [f, x0]) => {
+        //     if (!isReduced(x0)) {
+        //         return null
+        //     }
+
+        //     const fTy = h.typeOf(f)
+        //     const fDom = h.tyDom(fTy, depth)
+        //     const xDepth = depthInc(depth)
+
+        //     const x = h.tmVar([], xDepth, h.tyDom(fDom, xDepth))                //                x
+        //     const fix_f_x = h.tmOp2("fix2", f, x, xDepth, fTy)                  //          fix f x
+        //     const x_fixfx = h.tmLam(false0, false0, x, fix_f_x, depth, fDom)    //    (x -> fix f x)
+        //     const f_xfixfx = h.tmApply(f, x_fixfx, depth)                       //  f (x -> fix f x) 
+        //     const fxfixfx_x0 = h.tmApply(f_xfixfx, x0, depth)                   //  f (x -> fix f x) x0
+
+        //     return fxfixfx_x0
+        // })
+
+
+        builtinId("fix2", [weak, weak], parseTy("{ F @ { { Any -> Void } -> (Dom F) } -> (Cod F) }"), (depth, [f, x0], form) => {
+            if (!isReduced(x0)) {
+                return null
+            }
+
+            const gb = mkGraphBuilder(h, depth, form)
+            const fTy = h.typeOf(f)
+            const fDom = gb.tyDom(fTy)
+
+            const x_fixfx = gb.tmLam(false0, false0, gb => {
+                const x = gb.tmVar([], gb.tyDom(fDom))                    //                x
+                const fix_f_x = gb.tmOp2("fix2", f, x, fTy)               //          fix f x
+                return [x, fix_f_x]                                       //    (x -> fix f x)
+            }, fDom)
+
+            const f_xfixfx = gb.tmApply(f, x_fixfx)                       //  f (x -> fix f x) 
+            const fxfixfx_x0 = gb.tmApply(f_xfixfx, x0)                   //  f (x -> fix f x) x0
+
+            return fxfixfx_x0
+        })
+
+
         // Or:
         // fix f = x -> f ((x $? fix) f) x
         // We risk creating a cycle if "fix f" is reduced within the definition of "fix",
@@ -3162,46 +3225,58 @@ export function mkPrims(): Primitives {
             return null
         })
 
-        // Ferrum's blockUntil function behaves much-like Haskell's seq function.
-        // However, the motivation is different.
-        //   blockUntil provides control over the order of evaluation beneath lambdas.
-        builtinId("blockUntil", [weak, weak], parseTy("Str -> Type"), (depth, [a0, b0]) => {
+
+        function isReduced(a0: Addr): boolean {
             const a = h.directAddrOf(a0)
-            const b = h.directAddrOf(b0)
             const tag = h.nodeTag(a)
             switch (tag) {
                 case "TmDatum":
                 case "TmPair":
                 case "TmLambda":
-                    // A is reduced, we can release B
-                    return b
+                    return true
 
                 case "TmApply":
                 case "TmVar":
                 case "Prim":
-                    // Further reductions are needed in A before we can release B
-                    return null
+                    return false
 
                 case "TmAs":
                 case "TmTyAnnot":
+                    // We shouldn't encounter these here.
                     assert.impossible("?")
 
                 case "TySingleStr":
                 case "TyPair":
                 case "TyFun":
-                    assert.todo("?")
-                    // We can treat a type as a reduced term, but do we need to ?
-                    return b
+                    return true
+
                 case "TyApply":
                 case "TyVar":
-                    assert.todo("?")
                     // This type might reduce further.
-                    return null
+                    return false
+
                 default:
                     assert.noMissingCases(tag)
             }
 
-        })
+        }
+
+        // Ferrum's blockUntil function behaves much-like Haskell's seq function.
+        // However, the motivation is different.
+        //   blockUntil provides control over the order of evaluation beneath lambdas.
+        const blockUntil: Action = (depth, [a0]) => {
+            const a = h.directAddrOf(a0)
+            if (isReduced(a0)) {
+                return identityFunc()
+            }
+            else {
+                return null
+            }
+        }
+
+        builtinId("blockUntil", [weak], parseTy("Any -> X @ Any -> X"), blockUntil)
+        builtinTermOp("_$?", [weak], parseTy("Any -> X @ Any -> X"), blockUntil)
+
 
 
         builtinId("Primitive", [weak], parseTy("Str -> Type"), (depth, [a0]) => {
@@ -3246,14 +3321,14 @@ export function mkPrims(): Primitives {
         })
 
         // These are needed by code in fe4-prelude.fe
-        builtinTODO("jsStrJoin",    /**/  [weak, weak], parseTy('{ Str -> (List Str) -> Str }'))
-        builtinTODO("not",          /**/  [weak], parseTy('{ Bool -> Bool }'))
-        builtinTODO("strCharAt",    /**/  [weak, weak], parseTy('{ Str -> Int -> Char }'))
-        builtinTODO("strCharAtMb",  /**/  [weak, weak], parseTy('{ Str -> Int -> [] | [Char] }'))
-        builtinTODO("trace2",       /**/  [weak, weak], parseTy('{ Any -> K @ { -> Any} -> K [] }'))
+        builtinTODO("jsStrJoin",    /**/[weak, weak], parseTy('{ Str -> (List Str) -> Str }'))
+        builtinTODO("not",          /**/[weak], parseTy('{ Bool -> Bool }'))
+        builtinTODO("strCharAt",    /**/[weak, weak], parseTy('{ Str -> Int -> Char }'))
+        builtinTODO("strCharAtMb",  /**/[weak, weak], parseTy('{ Str -> Int -> [] | [Char] }'))
+        builtinTODO("trace2",       /**/[weak, weak], parseTy('{ Any -> K @ { -> Any} -> K [] }'))
 
 
-        function primTODO (name: string, type?: string): [string, string] {
+        function primTODO(name: string, type?: string): [string, string] {
             const typeAnnot = type === undefined ? "" : ` : ${type}`
             // We can either generate a runtime-error if this unknown primitive is ever actually used.
             return [name, `(a -> error ["TODO implement (${name})"]) ${typeAnnot}`]

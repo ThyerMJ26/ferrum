@@ -140,10 +140,16 @@ export function feData_toJson(data: FeData): JsData {
 //     return fff
 // }
 
+// fix f = x -> f (fix f) x
 function fix(f: FeFunc<FeValue, FeFunc<FeValue>>) {
     const ff = (x: FeValue) => fff(x);
     const fff = f(ff);
     return fff
+}
+
+// fix f x = f (x -> fix f x) x
+const fix2 = (f: FeFunc<FeValue, FeFunc<FeValue>>) => (x: FeValue): FeValue => {
+    return f(x => fix2(f)(x))(x)
 }
 
 // function fix(f: FeFunc<FeValue, FeFunc<FeValue>>) {
@@ -1146,11 +1152,14 @@ let primitives2 = () => {
     prims0.false = false
     prims0.true = true
     prims1.null = (a) => (a === null)
-    // prims2["$"] = (a) => (b) => a(b)
-    // A non-specializing implementation of the specializing application operator.
+
+    // A non-specializing implementation of the specializing-application operator.
     prims2["(<$)"] = (a) => (b) => a(b)
+    // A non-blocking implementation of the block-until operator.
+    prims2["(_$?)"] = (a) => (b) => b
+
+
     prims2.strConcat = (a) => (b) => (a + b)
-    // prims2["^"] = (a) => (b) => (a + b)
     prims1.explode = (input) => {
         var result: FeValue = null;
         for (var i = input.length - 1; i >= 0; i--) {
@@ -1254,6 +1263,7 @@ let primitives2 = () => {
     prims1.castT = (val) => (val)
     prims1.typeOf = (a) => MkType(`(typeOf _)`)
     prims0.fix = fix
+    prims0.fix2 = fix
     prims0.loop1 = loop1
     prims0.loop2 = loop2
     prims0.break = primBreak

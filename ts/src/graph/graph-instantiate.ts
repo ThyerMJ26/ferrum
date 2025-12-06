@@ -1,10 +1,9 @@
 import { ExprLoc, Expr, LocField, exprFreeVars, showExpConcise, TorT, TorP, Decl, eList, isLambdaExpr, isPatTypeAnnotated, exprAddNilLoc } from "../syntax/expr.js";
 import {
     Datum,
-    Addr, TypeAddr, Heap, TypeAddrMb, isAddrYes, noAddr, Depth, DepthShift, depthInc,
+    Addr, TypeAddr, Heap, TypeAddrMb, isAddrYes, addrNo, Depth, DepthShift, depthInc,
     TyPrim0, TyOp1, TyOp2,
     booleanToBool,
-    addrNo,
     depthZero,
     depthMax2,
     false0,
@@ -688,7 +687,7 @@ export function mkInstantiate(h: Heap, gr: GraphReduce, pred: GraphPredicates, t
         pat0: ExprLoc, tyVar: TypeAddrMb,
         ctxTy: TypeAddr, isCtxAnnot: boolean, performTypeCheck: boolean
     ): Addr {
-        const noTyVar = noAddr
+        const noTyVar = addrNo
 
         const patAddr = ilp(path, pat0, tyVar, ctxTy, isCtxAnnot)
         return patAddr
@@ -1135,7 +1134,7 @@ export function mkInstantiate(h: Heap, gr: GraphReduce, pred: GraphPredicates, t
                         const pat_no = h.tyOp2("{\\}", patCtxTy, patGuardTy, varDepth)
                         const env2 = env.clone()
                         const isCtxAnnot = false
-                        const patAddr = instLambdaPat(prims, env2, varDepth, [], expr.pat, noAddr, pat_yes, isCtxAnnot, performTypeCheck)
+                        const patAddr = instLambdaPat(prims, env2, varDepth, [], expr.pat, addrNo, pat_yes, isCtxAnnot, performTypeCheck)
 
                         // The patSynTy type can be too narrow here, we want the full domain, not just the part that matches.
                         // let bodyCtxTy = h.tyApply(ctxTy, patSynTy)

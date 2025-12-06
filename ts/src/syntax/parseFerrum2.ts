@@ -44,14 +44,14 @@ function tryParseToken(ps: ParseState, tag: string, val: any): boolean {
 // As it is, operator names all correspond to built-in primitive names, and bypass the environment lookup
 const USE_EPRIMS = true // use ePrim
 
-export function mkOpInfix(tort: TorT, name: string, loc: Loc, arg1: ExprLoc, arg2: ExprLoc): ExprLoc {
+export function mkOpInfix(tort: TorT, opDefn: FerrumOpDefn, loc: Loc, arg1: ExprLoc, arg2: ExprLoc): ExprLoc {
     let show = (a: any) => JSON.stringify(a)
     if (arg1 === undefined) {
         throw new Error(`mkApplyOp, undefined arg1, ${show(name)}, ${show(loc)}`)
     }
     let loc2 = locMerge(arg1.loc, arg2.loc)
     const locA = { loc: loc2 }
-    switch (name) {
+    switch (opDefn.nameA) {
         case "->":
             return eLambda(locA, arg1, arg2)
         case "=>": // lambda-yes
@@ -78,26 +78,24 @@ export function mkOpInfix(tort: TorT, name: string, loc: Loc, arg1: ExprLoc, arg
         case "<|":
             return eApply(locA, arg1, arg2, "<|")
         default: {
+            const nameP = opDefn.nameP[tort]
+            assert.isDefined(nameP)
             if (USE_EPRIMS) {
                 let loc3 = { loc: locMerge(arg1.loc, arg2.loc) }
-                const op = ferrumOperatorTable.getInfix(name)
-                assert.isDefined(op)
-                const nameP = op.nameP[tort]
-                assert.isDefined(nameP)
                 let arg3 = ePrim(loc3, nameP, [arg1, arg2])
                 return arg3
             }
             else {
                 let loc3 = locMerge(loc, arg1.loc)
-                let arg3 = eApply({ loc: loc2 }, eApply({ loc: loc3 }, eVar({ loc }, name), arg1), arg2)
+                let arg3 = eApply({ loc: loc2 }, eApply({ loc: loc3 }, eVar({ loc }, nameP), arg1), arg2)
                 return arg3
             }
         }
     }
 }
 
-function mkOpPrefix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
-    switch (name) {
+function mkOpPrefix(tort: TorT, opDefn: FerrumOpDefn, loc: Loc, arg1: ExprLoc): ExprLoc {
+    switch (opDefn.nameC) {
         case "->": {
             // let unitArg: Expr = { tag: "EDatum", value: null, loc: loc }
             let unitArg: ExprLoc = { tag: "EList", exprs: [], tail: null, loc: loc }
@@ -105,31 +103,33 @@ function mkOpPrefix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
             return eLambda({ loc: loc2 }, unitArg, arg1)
         }
         default: {
-            assert.impossible("Do we ever get here?")
+            const nameP = opDefn.nameP[tort]
+            assert.isDefined(nameP)
             if (USE_EPRIMS) {
                 let loc3 = locMerge(loc, arg1.loc)
-                let arg3 = ePrim({ loc: loc3 }, name, [arg1])
+                let arg3 = ePrim({ loc: loc3 }, nameP, [arg1])
                 return arg3
             }
             else {
-                let arg3 = eApply({ loc: loc }, eVar({ loc: loc }, name), arg1)
+                let arg3 = eApply({ loc: loc }, eVar({ loc: loc }, nameP), arg1)
                 return arg3
             }
         }
     }
 }
 
-function mkOpPostfix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
-    assert.impossible("Do we ever get here?")
-    switch (name) {
+function mkOpPostfix(tort: TorT, opDefn: FerrumOpDefn, loc: Loc, arg1: ExprLoc): ExprLoc {
+    switch (opDefn.nameC) {
         default: {
+            const nameP = opDefn.nameP[tort]
+            assert.isDefined(nameP)
             if (USE_EPRIMS) {
                 let loc2 = locMerge(loc, arg1.loc)
-                let arg2 = ePrim({ loc: loc2 }, name, [arg1])
+                let arg2 = ePrim({ loc: loc2 }, nameP, [arg1])
                 return arg2
             }
             else {
-                let arg2 = eApply({ loc: arg1.loc }, eVar({ loc }, name), arg1)
+                let arg2 = eApply({ loc: arg1.loc }, eVar({ loc }, nameP), arg1)
                 return arg2
             }
         }
@@ -137,21 +137,21 @@ function mkOpPostfix(name: string, loc: Loc, arg1: ExprLoc): ExprLoc {
 }
 
 
-const mkOp: MkOpExpr = {
+const mkOp: MkOpExpr<FerrumRuleName> = {
     mkApply(op: ApplyOp, func: ExprLoc, arg: ExprLoc): ExprLoc {
         const loc = locMerge(func.loc, arg.loc)
         const arg2: ExprLoc = { tag: "EApply", loc: loc, func, arg, op: "" }
         return arg2
     },
-    mkInfix(tort, opName, opLoc, lhs, rhs) {
+    mkInfix(tort, opDefn, opLoc, lhs, rhs) {
         const loc = locMerge(lhs.loc, rhs.loc)
-        return mkOpInfix(tort, opName, loc, lhs, rhs)
+        return mkOpInfix(tort, opDefn, loc, lhs, rhs)
     },
-    mkPostfix(tort, opName, opLoc, lhs) {
-        return mkOpPostfix(opName, opLoc, lhs)
+    mkPostfix(tort, opDefn, opLoc, lhs) {
+        return mkOpPostfix(tort, opDefn, opLoc, lhs)
     },
-    mkPrefix(tort, opName, opLoc, rhs) {
-        return mkOpPrefix(opName, opLoc, rhs)
+    mkPrefix(tort, opDefn, opLoc, rhs) {
+        return mkOpPrefix(tort, opDefn, opLoc, rhs)
     },
     mkParseError(errorLoc, errorMsg) {
         throw new Error(`Operator Parser Error at (${showLoc(errorLoc)}): ${errorMsg}`)
@@ -187,7 +187,7 @@ type FerrumOperName =
     | "|-" | "|="
     | "$?"
 
-
+type FerrumOpDefn = OpDefn<FerrumRuleName>
 
 function mkFerrumOperatorTable(): OperatorTableQuery<FerrumRuleName, FerrumOperName> {
     const ot = mkOperatorTable<FerrumRuleName, FerrumOperName>()
@@ -232,7 +232,7 @@ function mkFerrumOperatorTable(): OperatorTableQuery<FerrumRuleName, FerrumOperN
     ot.syRule("PostSeq", [], [])
 
     ot.opRule("Colon", "None", ["Expr", "Pipe_Fwd", "Pipe_Bwd"])
-    ot.syRule("Abs", ["As"], ["Abs", "Colon"])
+    ot.syRule("Abs", ["As"], ["Abs", "Colon", "PostSeq"])
 
 
     /*** Operators ***/
@@ -270,6 +270,15 @@ function mkFerrumOperatorTable(): OperatorTableQuery<FerrumRuleName, FerrumOperN
     ot.addInfix("|>"  /**/, "Tm", null, "Pipe_Fwd")
     ot.addInfix("<$"  /**/, "Tm", null, "Pipe_Bwd")
     ot.addPostfix("$?" /**/, "Tm", null, "PostSeq")
+
+    // TODO ? Rather than implement "$?" as a postfix operator,
+    // TODO ?   implement it as an infix operator which
+    // TODO ?   binds more tightly than application on its right hand-side ?
+    // TODO ? The block-until "$?" primitive can either be seen as:
+    // TODO ?   - a unary primitive which reduces to the identify function, or
+    // TODO ?   - a binary primitive which reduces to its second argument.
+    // TODO ? The arity of the operators becomes the arity of the primitives,
+    // TODO ?   either way works, is one preferable over the other ?
 
     ot.addPrefix("->"   /**/, "Tm", null, "Abs")
     ot.addInfix("->"  /**/, "Tm", null, "Abs")

@@ -257,11 +257,11 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
             addOp("Infix", infixOps, name, `${name}`, tm, ty, rule)
         },
         addPrefix(name: string, tm: "Tm" | null, ty: "Ty" | null, rule: RuleName): unit {
-            addOp("Prefix", prefixOps, name, `_${name}`, tm, ty, rule)
+            addOp("Prefix", prefixOps, name, `${name}_`, tm, ty, rule)
         },
         addPostfix(name: string, tm: "Tm" | null, ty: "Ty" | null, rule: RuleName): unit {
             assert.isFalse(infixOps.has(name), "An operator cannot be both infix and postfix.")
-            addOp("Postfix", postfixOps, name, `${name}_`, tm, ty, rule)
+            addOp("Postfix", postfixOps, name, `_${name}`, tm, ty, rule)
         },
         opRule,
         syRule,
@@ -271,17 +271,14 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
         /*** Query ***/
         getInfix(name: string): OpDefn<RuleName> & { fixity: "Infix" } | undefined {
             const op = infixOps.get(name)
-            assert.isDefined(op)
             return op
         },
         getPrefix(name: string): OpDefn<RuleName> & { fixity: "Prefix" } | undefined {
             const op = prefixOps.get(name)
-            assert.isDefined(op)
             return op
         },
         getPostfix(name: string): OpDefn<RuleName> & { fixity: "Postfix" } | undefined {
             const op = postfixOps.get(name)
-            assert.isDefined(op)
             return op
         },
         compare(lhs: RuleName, rhs: RuleName | null): OpCompare {
@@ -295,18 +292,18 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
 
 
 
-export type MkOpExpr = {
+export type MkOpExpr<RuleName extends string> = {
     mkApply(op: ApplyOp, func: ExprLoc, arg: ExprLoc): ExprLoc
-    mkInfix(tort: TorT, opName: string, opLoc: Loc, lhs: ExprLoc, rhs: ExprLoc): ExprLoc
-    mkPrefix(tort: TorT, opName: string, opLoc: Loc, rhs: ExprLoc): ExprLoc
-    mkPostfix(tort: TorT, opName: string, opLoc: Loc, lhs: ExprLoc): ExprLoc
+    mkInfix(tort: TorT, opName: OpDefn<RuleName>, opLoc: Loc, lhs: ExprLoc, rhs: ExprLoc): ExprLoc
+    mkPrefix(tort: TorT, opName: OpDefn<RuleName>, opLoc: Loc, rhs: ExprLoc): ExprLoc
+    mkPostfix(tort: TorT, opName: OpDefn<RuleName>, opLoc: Loc, lhs: ExprLoc): ExprLoc
 
     mkParseError(errorLoc: Loc, errorMsg: string): ExprLoc
 }
 
 
 export function operatorParser<RuleName extends string, OperName extends string>(
-    ot: OperatorTableQuery<RuleName, OperName>, mkOp: MkOpExpr, tort: TorT, exprs: ExprLoc[]
+    ot: OperatorTableQuery<RuleName, OperName>, mkOp: MkOpExpr<RuleName>, tort: TorT, exprs: ExprLoc[]
 ): ExprLoc {
     // The opStack and argStack could be combined into a single stack.
     // That would be more conventional for an LR shift-reduce parser.
@@ -342,7 +339,7 @@ export function operatorParser<RuleName extends string, OperName extends string>
                         case "Prefix": {
                             let arg1 = argStack.pop() ?? mkOp.mkParseError(leftOpLoc, "Missing argument.")
                             opStack.pop()
-                            const op = mkOp.mkPrefix(tort, leftOpDefn.nameC, leftOpLoc, arg1)
+                            const op = mkOp.mkPrefix(tort, leftOpDefn, leftOpLoc, arg1)
                             argStack.push(op)
                             break
                         }
@@ -350,7 +347,7 @@ export function operatorParser<RuleName extends string, OperName extends string>
                             let arg2 = argStack.pop() ?? mkOp.mkParseError(leftOpLoc, "Missing argument.")
                             let arg1 = argStack.pop() ?? mkOp.mkParseError(leftOpLoc, "Missing argument.")
                             opStack.pop()
-                            let op = mkOp.mkInfix(tort, leftOpDefn.nameC, leftOpLoc, arg1, arg2)
+                            let op = mkOp.mkInfix(tort, leftOpDefn, leftOpLoc, arg1, arg2)
                             argStack.push(op)
                             break
                         }
@@ -389,7 +386,7 @@ export function operatorParser<RuleName extends string, OperName extends string>
                     case "Postfix":
                         reduce(opDefn)
                         let arg1 = argStack.pop() ?? mkOp.mkParseError(expr.loc, "Missing argument.")
-                        const op = mkOp.mkPostfix(tort, opDefn.nameC, expr.loc, arg1)
+                        const op = mkOp.mkPostfix(tort, opDefn, expr.loc, arg1)
                         argStack.push(op)
                         // The postfix operator "$?" here:
                         //   a b $? b c
@@ -407,6 +404,17 @@ export function operatorParser<RuleName extends string, OperName extends string>
         }
         else {
             if (juxtaposedApplyPossible) {
+
+                // TODO ? Rather than calling mkOp.mkAppy immediately (or at all) here,
+                // TODO ?   we imagine we've just seen the juxtaposition operator "",
+                // TODO ?   and then call mkOp.mkInfix("", ...) later.
+                // TODO ? We then handle this juxtaposition operator much like any other operator,
+                // TODO ?   looking it up in the user supplied operator-table.
+                // TODO ? This shifts the meaning/precedence/associativity of juxtaposition from here 
+                // TODO ?   to the operator-table (and mkOp.mkInfix("", ...)).
+                // TODO ? Imagining juxtaposition operators on the fly seems cleaner than adding
+                // TODO ?   an additional pass that inserts all the juxtaposition operators upfront.
+
                 const fun = argStack.pop() ?? mkOp.mkParseError(expr.loc, "Missing argument.")
                 const app = mkOp.mkApply("", fun, expr)
                 argStack.push(app)

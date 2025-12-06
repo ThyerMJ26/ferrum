@@ -157,6 +157,13 @@ function cg8_expr(exp: ExprLoc, jsEnv: JsEnv, jsNameSrc: JsNameSrc): JsExpr {
                 args.unshift(exp.arg)
                 exp = exp.func
             }
+
+            // If the function is the blockUntil primitive, we can throw it away,
+            //   and use the first argument as the function.
+            if (exp.tag === "EPrim" && exp.name === "(_$?)") {
+                exp = args.shift()!
+            }
+
             let nameJs
             if (exp.tag === "EVar" && (nameJs = concreteJsOpName(exp.name)) !== null) {
                 if (args.length === 2) {

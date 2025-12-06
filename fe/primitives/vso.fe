@@ -79,6 +79,7 @@ language ferrum/0.1
     let Self  = primitive "Self";
     let SelfT = primitive "SelfT";
     let fix   = primitive "fix";
+    let fix2  = primitive "fix2";
 
     -- Loops
     let loop1    = primitive "loop1";

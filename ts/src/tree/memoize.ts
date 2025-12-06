@@ -144,6 +144,9 @@ class MemoDataImpl implements MemoData {
     toSave: LogLine[] = []
     filename: string | null = null
 
+    // TODO Plumb this through, either:
+    // TODO ?  - once when constructing a MemoData instance, or
+    // TODO ?  - each time an Io related function is called ?
     io: Io = getIo()
 
     reset() {

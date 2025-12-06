@@ -1,7 +1,7 @@
 import { unit } from "../utils/unit.js"
 import { assert } from "../utils/assert.js"
 import { ExprLoc, ExprTree, Output, showExpr1, showExpr2, ShowExprLine } from "../syntax/expr.js"
-import { Heap, Addr, noAddr, Form, isAddrNo, AddrMb, isAddrYes, TypeAddr, Depth } from "../graph/graph-heap2.js"
+import { Heap, Addr, addrNo, Form, isAddrNo, AddrMb, isAddrYes, TypeAddr, Depth } from "../graph/graph-heap2.js"
 import { ExprTypeGraph } from "../graph/graph-instantiate.js"
 import { readback, readbackExpr } from "../graph/graph-readback.js"
 import { TiExpr, tiIsContradiction, tiIsFalse, tiIsTrue, tiIsUnknown, TiMemo, TiMemoEntry, TiVal } from "../graph/graph-ti.js"
