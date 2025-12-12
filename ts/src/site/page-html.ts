@@ -5,10 +5,10 @@ import { unit } from "../utils/unit.js"
 import { Doc, Page } from "./page-doc.js"
 import { AppDefns, AppInstances, FileMap, PageMap } from "./website-builder.js"
 import { UiColor, UiStyle, UiText, uiTextToStr } from "../ui/text.js"
-import { escapeText, htmlBuild } from "../ui/html.js"
+import { cssDefn, CssDefn, CssName, CssStyle, escapeText, htmlBuild } from "../ui/html.js"
 
 
-export function docToHtml2(ctx: PageHtmlCtx, styles: PageStyles, lines: string[], doc: Doc): unit {
+export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: string[], doc: Doc): unit {
 
     function mod(module: string): string {
         // const srcFile = path.join(ctx.topDir, module)
@@ -22,55 +22,81 @@ export function docToHtml2(ctx: PageHtmlCtx, styles: PageStyles, lines: string[]
         }
     }
 
-    htmlBuild(lines, styles, (b) => {
 
-        dth(doc)
+    htmlBuild(styleLines, bodyLines, (s, h) => {
 
-        function dth(doc: Doc): unit {
+        const paragraph = s.cssStyle({
+            display: "flex",
+            flexDirection: "column",
+            marginBlockEnd: "1em",
+        })
+        const firstSentence = s.cssStyle({
+            textIndent: "0ch"
+        })
+        const subsequentSentence = s.cssStyle({
+            textIndent: "2ch"
+        })
+        const linkDescription = s.cssStyle({
+            textIndent: "4ch"
+        })
+        const listItem = s.cssStyle({
+            textIndent: "0ch"
+        })
+
+
+        d2h(doc, true)
+        return
+
+        function d2h(doc: Doc, top: boolean = false): unit {
 
             if (typeof doc === "string") {
-                lines.push(escapeText(doc))
+                bodyLines.push(escapeText(doc))
                 return
             }
             if (doc instanceof Array) {
                 for (const d of doc) {
-                    dth(d)
+                    d2h(d)
                 }
                 return
             }
             if ("tag" in doc) {
                 switch (doc.tag) {
                     case "para":
-                        b.elem("p", () => {
-                            dth(doc.para)
+                        if (doc.sentences.length === 0) return
+                        const [fst, ...rst] = doc.sentences
+                        h.elem("div", paragraph, () => {
+                            h.elem("span", firstSentence, () => {
+                                d2h(fst)
+                            })
+                            for (const r of rst) {
+                                h.elem("span", subsequentSentence, () => {
+                                    d2h(r)
+                                })
+                            }
+                            h.elem("br")
                         })
                         break
                     case "list":
-                        b.elem("ul", () => {
+                        h.elem("ul", () => {
                             for (const item of doc.items) {
-                                b.elem("li", () => {
-                                    dth(item)
+                                h.elem("li", listItem, () => {
+                                    d2h(item)
                                 })
                             }
                         })
-
                         break
                     case "defns":
-                        b.elem("dl", () => {
+                        h.elem("dl", () => {
                             for (const defn of doc.defns) {
-                                b.elem("dt", () => {
-                                    dth(defn.term)
+                                h.elem("dt", () => {
+                                    d2h(defn.term)
                                 })
-                                b.elem("dd", () => {
-                                    dth(defn.defn)
+                                h.elem("dd", () => {
+                                    d2h(defn.defn)
                                 })
                             }
                         })
-
-
                         break
-                    case "title":
-                        assert.impossible()
                     case "app-publish":
 
                         ctx.numApps++
@@ -85,7 +111,7 @@ export function docToHtml2(ctx: PageHtmlCtx, styles: PageStyles, lines: string[]
 
                         const q = JSON.stringify
 
-                        const h = [
+                        const appLines = [
                             `<div style="width:90vw;height:50vh;"><div id=${topDivId}></div></div>`,
                             "<script type='module'>",
                             `  import { initApp2 } from ${mod("/ts/gen/ui/browser.js")}`,
@@ -94,27 +120,36 @@ export function docToHtml2(ctx: PageHtmlCtx, styles: PageStyles, lines: string[]
                             "</script>",
                         ]
 
-                        lines.push(...h)
+                        bodyLines.push(...appLines)
                         break
 
                     case "link-page": {
-                        const srcFile = path.resolve(path.dirname(ctx.srcFile), doc.page)
 
+                        const srcFile = path.resolve(path.dirname(ctx.srcFile), doc.page)
                         const entry = ctx.pageMap.get(srcFile)
                         if (entry !== undefined) {
                             const href = entry[0].urlPath
-                            b.elemA("a", { href }, () => {
+                            h.elem("a", { href }, () => {
                                 const text = doc.text ?? href
                                 // TODO ? Use the title from the page itself ?
-                                // TODO ? We'll need to generate (or have generated) each page linked to in order to render this page.
+                                // TODO ? We'll need to generate (or have generated) each page linked to so as to render this page.
                                 // TODO ? Generating precedes rendering, so this wouldn't be potentially cyclic.
                                 // const text = doc.text ?? title
-                                b.text(text)
+                                h.text(text)
                             })
                         }
                         else {
-                            b.text(`(Bad Link: ${JSON.stringify(doc)})`)
+                            h.text(`(Bad Page Link: ${JSON.stringify(srcFile)})`)
                         }
+
+                        const desc = doc.desc
+                        if (desc !== undefined) {
+                            h.elem("br")
+                            h.elem("div", linkDescription, () => {
+                                d2h(desc)
+                            })
+                        }
+
                         break
                     }
                     case "link-file":
@@ -123,21 +158,21 @@ export function docToHtml2(ctx: PageHtmlCtx, styles: PageStyles, lines: string[]
                         const entry = ctx.fileMap.get(srcFile)
                         if (entry !== undefined) {
                             const href = entry[0].urlPath
-                            b.elemA("a", { href }, () => {
+                            h.elem("a", { href }, () => {
                                 const text = doc.text ?? href
-                                b.text(text)
+                                h.text(text)
                             })
                         }
                         else {
-                            b.text(`(Bad Link: ${JSON.stringify(doc)})`)
+                            h.text(`(Bad Link: ${JSON.stringify(doc)})`)
                         }
                         break
                         break
                     case "link-url":
-                            const href = doc.url
-                            b.elemA("a", { href }, () => {
-                                b.text(doc.text ?? href)
-                            })
+                        const href = doc.url
+                        h.elem("a", { href }, () => {
+                            h.text(doc.text ?? href)
+                        })
                         break
                     default:
                         assert.noMissingCases(doc)
@@ -145,17 +180,27 @@ export function docToHtml2(ctx: PageHtmlCtx, styles: PageStyles, lines: string[]
                 return
             }
 
-            if ("style" in doc) {
-                assert.isTrue(typeof doc.style === "object", "TODO Handle UiStyleNum numbers")
-                const ps = mkUiStyle(styles, doc.style, null)
-                lines.push(`<span class=${ps.cssName}>`)
+            // If we get this far, the only possibility left is that this is a UiText object.
+            if ("items" in doc) {
+                let clss = ""
+                if ("style" in doc) {
+                    assert.isTrue(typeof doc.style === "object", "TODO Handle UiStyleNum numbers")
+                    const ts = s.textStyle(doc.style)
+                    clss = ` class=${ts}`
+                }
+                bodyLines.push(`<span${clss}>`)
                 if ("items" in doc) {
                     assert.isTrue(doc.items instanceof Array)
                     for (const item of doc.items) {
-                        dth(item)
+                        d2h(item)
                     }
                 }
-                lines.push("</span>")
+                bodyLines.push("</span>")
+                return
+            }
+            else {
+                // A UiText value with no items has nothing to render statically.
+                // It might contain an "id" or "annot" field, but those are for use in dynamic situations.
             }
 
 
@@ -183,161 +228,7 @@ export type PageHtmlOptions = {
     importAppScripts?: boolean
 }
 
-type PageStyleKey = string
-type PageStyle = {
-    key: PageStyleKey
-    uiStyle: UiStyle
-    cssName: string
-    cssDefn: string
-}
 
-export type PageStyles = {
-    styleMap: Map<PageStyleKey, PageStyle>
-}
-
-// type PageStyles = Map<PageStyleKey, PageStyle>
-
-// function pageStyle(styles: PageStyles, uiStyle: UiStyle): PageStyle {
-//     const key = JSON.stringify(uiStyle)
-//     let pageStyle = styles.styleMap.get(key)
-//     if (pageStyle === undefined) {
-//         const cssName = "TODO"
-//         pageStyle = { key, uiStyle, cssName }
-//     }
-//     return pageStyle
-// }
-
-function styleEntries(uiStyle: UiStyle): [keyof UiStyle, string | number][] {
-    return Object.entries(uiStyle) as [keyof UiStyle, string | number][]
-}
-
-// Ideally this would ensure all the colour names below are correct.
-// Unfortuantely it evaluates to "string"
-type CssColor = CSSStyleDeclaration["color"]
-
-function bgColor(color: UiColor): CssColor {
-    switch (color) {
-        case "Black": return "lightgray"
-        case "Red": return "pink"
-        case "Green": return "lightgreen"
-        case "Yellow": return "yellow"
-        case "Blue": return "lightblue"
-        case "Magenta": return "magenta"
-        case "Cyan": return "lightcyan"
-        case "White": return "white"
-        default:
-            assert.noMissingCases(color)
-    }
-}
-
-function fgColor(color: UiColor): CssColor {
-    switch (color) {
-        case "Black": return "black"
-        case "Red": return "red"
-        case "Green": return "green"
-        // case "Yellow": return "brown"
-        case "Yellow": return "orange"
-        // case "Yellow": return "#C09000"
-        case "Blue": return "blue"
-        case "Magenta": return "magenta"
-        case "Cyan": return "cyan"
-        case "White": return "darkgray"
-        default:
-            assert.noMissingCases(color)
-    }
-}
-
-// TODO Share this with browser.ts.
-// TODO It is (or was) a copy,
-// TODO   it risks getting out of sync.
-export function mkUiStyle(styles: PageStyles, s: UiStyle, nameHint: string | null): PageStyle {
-    const key = JSON.stringify(s)
-
-    if (styles.styleMap.has(key)) {
-        return styles.styleMap.get(key)!
-    }
-
-    let style = ""
-
-    // let family = "MyMono-regular"
-    // let family = "sans-serif"
-    let family = "monospace"
-    // let family = "monospace, monospace"
-    style += `font-size: 1rem;`
-
-    // Using font-weight like this works: 
-    //   -         with the default sans-serif font in Firefox and Epiphany
-    //   - but not with the default sans-serif font in Chromium.
-    // It seems there's no weight lighter than 400 available.
-    // ( monospace seems to have a light-variant in Firefox, Chromium and Epiphany )
-    // switch (s.weight) {
-    //     case -1: style += "font-weight: 100;"; break
-    //     case 0: style += "font-weight: 400;"; break
-    //     case 1: style += "font-weight: 700;"; break
-    // }
-    // // Using an explicit font seems more reliable, but requires using external fonts
-    // switch (s.weight) {
-    //     case -1: family = "WuiFont-faint"; break
-    //     case 0: family = "WuiFont-regular"; break
-    //     case 1: family = "WuiFont-bold"; break
-    // }
-    // Alternatively, use opacity to achieve faintness (so as not to require external fonts)
-    //   This also makes the strike-through appear faint, which looks better / more consistent.
-    switch (s.weight) {
-        case -1: style += "opacity: 0.5;"; break
-        case 0: style += "font-weight: normal;"; break
-        case 1: style += "font-weight: bold;"; break
-    }
-
-    if (family !== undefined) {
-        style += `font-family: ${family};`
-    }
-
-    if (s.fg !== undefined) {
-        style += `color: ${fgColor(s.fg)};`
-    }
-    if (s.bg !== undefined) {
-        style += `background-color: ${bgColor(s.bg)};`
-    }
-    if (s.italic === 1) {
-        style += "font-style: italic;"
-    }
-    let decor = []
-    if (s.strike === 1) {
-        decor.push("line-through")
-    }
-    if (s.under ?? 0 > 1) {
-        decor.push("underline")
-    }
-    if (decor.length !== 0) {
-        style += `text-decoration-line: ${decor.join(" ")}`
-    }
-    // if (ts.under === 2) {
-    //     style += "text-decoration-style: double;"
-    // }
-
-    const num = styles.styleMap.size
-    const nameHint2 = nameHint === null ? "" : `_${nameHint}`
-
-    const cssName = `css${num}${nameHint2}`
-    const cssDefn = style
-    // const cssDefn = [
-    //     `{ // ${key}`,
-    //     `}`,
-    // ].map(a => `  ${a}\n`).join("")
-
-
-    const pageStyle: PageStyle = {
-        uiStyle: s,
-        key,
-        cssName,
-        cssDefn,
-    }
-
-    styles.styleMap.set(key, pageStyle)
-
-    return pageStyle
-}
 
 
 export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page): string[] {
@@ -354,19 +245,11 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
         }
     }
 
-    const styles: PageStyles = {
-        styleMap: new Map
-    }
-
-    const docLines: string[] = []
-    // docToHtml(ctx, styles, docLines, page.body)
-    docToHtml2(ctx, styles, docLines, page.body)
-
     const styleLines: string[] = []
+    const bodyLines: string[] = []
 
-    for (const s of styles.styleMap.values()) {
-        styleLines.push(`.${s.cssName} { ${s.cssDefn} }`)
-    }
+    docToHtml(ctx, styleLines, bodyLines, page.body)
+
 
     const lines: string[] = [
         "<!DOCTYPE html>",
@@ -377,15 +260,14 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
         "<title>",
         uiTextToStr(page.head.title), // TODO html escapes
         "</title>",
-        "</head>",
-        "<body>",
         "<style>",
         "html { box-sizing: border-box; }",
         "*, *:before, *:after { box-sizing: inherit; }",
-        // "body { margin: 0; width: 100vw; height: 100vh; font-family: sans-serif; }",
-        "body { font-family: sans-serif; }",
+        "body { font-family: sans-serif; max-width: 100ch; margin: auto; line-height: 1.5; }",
         ...styleLines,
         "</style>",
+        "</head>",
+        "<body>",
     ]
 
     // By default, only include the app-scripts if there are apps within the page.
@@ -419,7 +301,7 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
         lines.push("</h1>")
     }
 
-    lines.push(...docLines)
+    lines.push(...bodyLines)
 
     return lines
 }

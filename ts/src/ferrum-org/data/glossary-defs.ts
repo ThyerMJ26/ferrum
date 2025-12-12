@@ -1,14 +1,9 @@
+import { Defn2 } from "../../site/page-doc.js"
 import { UiText } from "../../ui/text.js"
 
-type Defn = {
-    name: string
-    text: UiText[]
-    // TODO ?
-    // seeAlso: string[]
-}
-
-function def(name: string, ...text: UiText[]): Defn {
-    return { name, text, }
+function def(name: string, ...text: UiText[]): Defn2 {
+    // return { name, text, }
+    return [name, text]
 }
 
 // TODO ? Allow multi-line definitions ?
@@ -16,7 +11,7 @@ function def(name: string, ...text: UiText[]): Defn {
 // function def(name: string, ...text: UiText[]): Defn {
 
 
-export const definitions: Defn[] = [
+export const definitions: Defn2[] = [
     def("", ""),
     def("[]",
         "Tuple-brackets.",
@@ -89,7 +84,7 @@ export const definitions: Defn[] = [
     def("type-error", "TODO"),
     def("term-error", "TODO"),
     def("panic", "A term-error at runtime causes a panic which halts the program."), // In future it should be possible to catch panics at the Io level.
-    def("synthesized-type", 
+    def("synthesized-type",
         "For compound terms, the type calculated for a term, based on its sub-terms.",
         "For term-variables, the type looked-up in the environment.",
         "For pattern-variables, the context-type is used.",

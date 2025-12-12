@@ -18,64 +18,92 @@ export type PageDoc = Doc
 export type Doc =
     | UiText
     | Doc[]
-    | { tag: "para", para: Doc }
+    | { tag: "para", sentences: Doc[] }
     | { tag: "list", items: Doc[] }
     | { tag: "defns", defns: Defn[] }
-    | { tag: "title", title: UiText }
+    // | { tag: "title", title: UiText }
     | { tag: "app-publish", instance: string }
     | { tag: "link-url", url: string, text?: UiText }
     | { tag: "link-file", file: string, text?: UiText }
-    | { tag: "link-page", page: string, text?: UiText }
+    | { tag: "link-page", page: string, text?: UiText, desc?: Doc }
 
+
+export type DocWalker = (doc: Doc) => unit
+
+export function docTour(doc: Doc, walk: DocWalker): unit {
+    if (doc instanceof Array) {
+        doc.forEach(d => walk(d))
+    }
+    if (typeof doc === "object" && "tag" in doc) {
+        switch (doc.tag) {
+            case "para": doc.sentences.forEach(d => walk(d)); break
+            case "list": doc.items.forEach(d => walk(d)); break
+            case "defns": doc.defns.forEach(({ defn }) => walk(defn)); break
+            case "app-publish":
+            case "link-url":
+            case "link-file":
+            case "link-page":
+                break
+            default:
+                assert.noMissingCases(doc)
+        }
+    }
+}
+
+export function docTourRecursive(doc: Doc, walk: DocWalker): unit {
+    docTour(doc, (d => {
+        walk(d)
+        docTourRecursive(d, walk)
+    }))
+}
 
 export type Defn = {
     term: UiText
     defn: Doc
 }
 
+export type Defn2 = [UiText, Doc]
+
 
 export type DocMaker = {
-    title(text: UiText): Doc
-    para(para: Doc): Doc
+    // title(text: UiText): Doc
+    para(para: Doc[]): Doc
     list(items: Doc[]): Doc
     defns(defns: Defn[]): Doc
-    linkFile(file: string, text?: UiText): Doc
-    linkPage(page: string, text?: UiText): Doc
     linkUrl(link: string, text?: UiText): Doc
+    linkFile(file: string, text?: UiText): Doc
+    linkPage(page: string, text?: UiText, desc?: Doc): Doc
     appPublish(instance: string): Doc
 }
 
 
 export const mkDoc: DocMaker = {
-    title: (title: UiText) => ({ tag: "title", title }),
-    para: (para: Doc) => ({ tag: "para", para }),
+    // title: (title: UiText) => ({ tag: "title", title }),
+    para: (para: Doc[]) => ({ tag: "para", sentences: para }),
     list: (items: Doc[]) => ({ tag: "list", items }),
     defns: (defns: Defn[]) => ({ tag: "defns", defns }),
     appPublish: (instance: string) => ({ tag: "app-publish", instance }),
-    linkFile: (file: string, text?: UiText) => ({ tag: "link-file", text, file }),
-    linkPage: (page: string, text?: UiText) => ({ tag: "link-page", text, page }),
     linkUrl: (url: string, text?: UiText) => ({ tag: "link-url", text, url }),
+    linkFile: (file: string, text?: UiText) => ({ tag: "link-file", text, file }),
+    linkPage: (page: string, text?: UiText, desc?: Doc) => ({ tag: "link-page", text, page, desc }),
 }
+
+
+// TODO ?
+export type DocThunk = Doc | (() => unit)
 
 export type DocBuilder = {
     add(doc: Doc): unit
-    para(para: Doc): unit
-    // list(elems: Doc[] | ((b: DocBuilder) => unit)): unit
-    list(elems: Doc[]): unit
-    // list(elems: (b: DocBuilder) => unit): unit
-    item(doc: Doc): unit
-    // item2(doc: Doc): unit
-    // item3(doc: Doc): unit
-    // item(level: number, doc: Doc): unit
-    // defns(defns: Defn[] | ((b: DocBuilder) => unit)): unit
-    defn(text: UiText, defn: Doc): unit
 
-    link_file(file: string, text?: UiText): unit
-    link_page(page: string, text?: UiText): unit
-    link_url(url: string, text?: UiText): unit
+    para(...para: Doc[]): Doc
+    list(elems: Doc[]): Doc
+    defns(defns: Defn2[]): Doc
 
-    appPublish(appInstanceName: string): unit
+    link_file(file: string, text?: UiText): Doc
+    link_page(page: string, text?: UiText, desc?: Doc): Doc
+    link_url(url: string, text?: UiText): Doc
 
+    appPublish(appInstanceName: string): Doc
 }
 
 export type PageBuilder =
@@ -86,57 +114,59 @@ export type PageBuilder =
 
 export function docBuild(cb: (b: DocBuilder) => unit): Doc {
 
-    const doc: Doc[] = []
+    const roots: Set<Doc> = new Set
 
-    let ul_list: Doc[] | null = null
-    let dl_list: Defn[] | null = null
+    function add(doc: Doc): Doc {
+        roots.add(doc)
+        return doc
+    }
 
     const b: DocBuilder = {
-        add: d => { doc.push(d) },
-        para: (para: Doc): unit => {
-            ul_list = null
-            dl_list = null
-            doc.push(mkDoc.para(para))
+        add: d => { add(d) },
+        para: (...para: Doc[]): Doc => {
+            return add(mkDoc.para(para))
         },
-        list: (elems: Doc[]): unit => {
-            ul_list = null
-            dl_list = null
-            doc.push(mkDoc.list(elems))
+        list: (elems: Doc[]): Doc => {
+            return add(mkDoc.list(elems))
         },
-        item: (item: Doc): unit => {
-            dl_list = null
-            if (ul_list === null) {
-                ul_list = [] // mkDoc.list([])
-                doc.push(mkDoc.list(ul_list))
-            }
-            ul_list.push(item)
+        defns: (ds): Doc => {
+            const ds1: Defn[] = ds.map(([term, defn]) => ({ term, defn }))
+            return add(mkDoc.defns(ds1))
         },
-        defn: (term: UiText, defn: Doc): unit => {
-            ul_list = null
-            if (dl_list === null) {
-                dl_list = [] // mkDoc.list([])
-                doc.push(mkDoc.defns(dl_list))
-            }
-            dl_list.push({ term, defn })
+        link_file(page, text): Doc {
+            return add(mkDoc.linkFile(page, text))
         },
-        link_file(page, text) {
-            doc.push(mkDoc.linkFile(page, text))
+        link_page(page, text, desc): Doc {
+            return add(mkDoc.linkPage(page, text, desc))
         },
-        link_page(page, text) {
-            doc.push(mkDoc.linkPage(page, text))
+        link_url(page, text): Doc {
+            return add(mkDoc.linkUrl(page, text))
         },
-        link_url(page, text) {
-            doc.push(mkDoc.linkUrl(page, text))
-        },
-        appPublish(appInstanceName) {
-            doc.push(mkDoc.appPublish(appInstanceName))
+        appPublish(appInstanceName): Doc {
+            return add(mkDoc.appPublish(appInstanceName))
         },
     }
 
     cb(b)
 
-    return doc
+    // Every Doc created by this builder is tentatively assumed to not be part of another.
+    // After all the Docs have been created, we remove from "roots" any docs that are part of another.
+    // Whatever is left, forms the final document.
+    // This provides a convenient way to use this same builder in both an imperative and functional way.
+    for (const r of roots) {
+        docTourRecursive(r, d => {
+            roots.delete(d)
+        })
+    }
+
+
+    return [...roots]
 }
+
+
+
+
+
 export function pageBuild(cb: (b: PageBuilder) => unit): Page {
 
     let title: UiText = ""

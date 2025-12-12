@@ -64,8 +64,8 @@ export async function siteExport(sd: SiteDefn, topDir: string, outDir: string): 
             return
         }
 
-        if ("page2" in pageModule && pageModule.page2) {
-            const page = pageModule.page2()
+        if ("page" in pageModule && pageModule.page) {
+            const page = pageModule.page()
             const ctx: PageHtmlCtx = {
                 srcFile: p.srcFile,
                 topDir: sf.topDir,

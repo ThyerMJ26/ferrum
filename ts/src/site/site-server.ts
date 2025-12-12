@@ -72,8 +72,8 @@ export async function siteServe(sd: SiteDefn, topDir: string, portNum: number): 
         const importUrl = url.pathToFileURL(srcFile)
         importUrl.searchParams.set("seqId", `${seqId}`)
         const pageModule = (await import(importUrl.toString())).default as PageModule
-        if (pageModule.page2 !== undefined) {
-            const page = pageModule.page2()
+        if (pageModule.page !== undefined) {
+            const page = pageModule.page()
             const ctx: PageHtmlCtx = {
                 srcFile: entry.srcFile,
                 topDir,

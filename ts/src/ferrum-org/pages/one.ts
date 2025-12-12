@@ -5,16 +5,21 @@ import { Page, pageBuild } from "../../site/page-doc.js";
 import { PageModule } from "../../site/page-module.js";
 
 const pageModule: PageModule = {
-    page2
+    page
 }
 export default pageModule
 
-export function page2(): Page {
+export function page(): Page {
     return pageBuild(b => {
         b.title("Page 123 ");
-        b.item("A pure functional programming language.");
-        b.item("A specializing translator.");
-        b.item("A specialator.");
+
+
+        b.list([
+            "A pure functional programming language.",
+            "A specializing translator.",
+            "A specialator.",
+        ]);
+
         b.para("My first paragraph.");
         b.para("My second paragraph.");
 

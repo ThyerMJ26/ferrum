@@ -4,12 +4,12 @@ import { PageModule } from "../../site/page-module.js";
 import { Page, pageBuild } from "../../site/page-doc.js";
 
 const pm: PageModule = {
-    page2
+    page
 }
 export default pm
 
 
-export function page2(): Page {
+export function page(): Page {
     return pageBuild(b => {
         b.title("Examples");
 

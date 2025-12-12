@@ -26,7 +26,13 @@ export function mkIoNodeJs_real(vfs_root: URL): Io {
             return fs.readFileSync(filename, "ascii")
         },
         file_write(filename, contents) {
-            fs.writeFileSync(filename, contents)
+            try {
+                fs.writeFileSync(filename, contents)
+            }
+            catch(exc) {
+                // TODO ? A more flexible way to handle/ignore errors ?
+                console.error("Failed to write to file:", filename)
+            }
         },
         file_rm(filename) {
             fs.rmSync(filename, { force: true })

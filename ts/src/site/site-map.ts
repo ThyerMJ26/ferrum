@@ -3,7 +3,7 @@ import * as path from "node:path";
 import * as url from "node:url";
 
 import { assert } from "../utils/assert.js"
-import { SiteDefnFiles } from "./website-builder.js"
+import { SiteDefnFiles, WebsiteEntry } from "./website-builder.js"
 
 
 export function htmlSiteMap(sf: SiteDefnFiles): string[] {
@@ -33,6 +33,8 @@ export function htmlSiteMap(sf: SiteDefnFiles): string[] {
     return lines2
 }
 
+const defaultOpen: WebsiteEntry["tag"][] = ["Render", "AppPublish"]
+
 export function htmlSiteMap2(sf: SiteDefnFiles): string[] {
 
 
@@ -51,7 +53,8 @@ export function htmlSiteMap2(sf: SiteDefnFiles): string[] {
 
     const smLines: string[] = []
     for (const { entry: siteEntry, urlMap } of sf.entries) {
-        smLines.push(`<details><summary>${JSON.stringify(siteEntry)}</summary>`)
+        const open = defaultOpen.indexOf(siteEntry.tag) === -1 ? "" : " open"
+        smLines.push(`<details${open}><summary>${JSON.stringify(siteEntry)}</summary>`)
         for (const [u, entry] of urlMap) {
             switch (entry.tag) {
                 case "file":

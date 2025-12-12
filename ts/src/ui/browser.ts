@@ -12,6 +12,7 @@
 
 import { unit } from "../utils/unit.js";
 import { assert } from "../utils/assert.js";
+import { HtmlT, HtmlAttrs, HtmlTag, CssStyle } from "./html.js"
 import { WuiResponseMsg, WuiRequestMsg, Pane, ViewNum, WuiRequestWrapper, WuiResponseWrapper, Tab } from "./protocol.js";
 import { UiText, UiStyle, UiColor, UiStyleNum, UiTextId } from "./text.js";
 import { App, ViewCtx as ui_ViewCtx } from "./app-ui.js";
@@ -22,25 +23,22 @@ import { mkReactive } from "./reactive.js";
 
 //#region Html Css
 
-export type Html =
-    [keyof HTMLElementTagNameMap, { [_: string]: string }, ...(Html | string | HTMLElement)[]]
+type Html = HtmlT<HTMLElement>
 
-
-function mkHtml<K extends keyof HTMLElementTagNameMap>(
-    [tag, attrs, ...children]: [K, { [_: string]: string }, ...(Html | string | HTMLElement)[]]): HTMLElementTagNameMap[K] {
+function mkHtml<T extends HtmlTag>(
+    [tag, attrs, ...children]: [T, HtmlAttrs, ...(Html | string | HTMLElement)[]]): HTMLElementTagNameMap[T] {
     const obj = document.createElement(tag);
-    Object.entries(attrs).forEach(([name, val]) => {
+    for (const [name, val] of Object.entries(attrs)) {
         obj.setAttribute(name, val);
-    })
-    const children2: (HTMLElement | string)[] = children.map(child => {
+    }
+    for (const child of children) {
         if (child instanceof Array) {
-            return mkHtml(child as Html)
+            obj.append(mkHtml(child))
         }
         else {
-            return child;
+            obj.append(child);
         }
-    })
-    obj.append(...children2)
+    }
     return obj;
 }
 
@@ -58,7 +56,8 @@ function mkCss2(nameHint: string, styleObj: { [_: string]: string }): string {
     const styleStr = Object.entries(styleObj).map(([key, val]) => `${key}: ${val}`).join(";\n")
     return mkCss(nameHint, styleStr)
 }
-type CssStyle = { [K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K] extends string ? CSSStyleDeclaration[K] : never }
+
+// type CssStyle = { [K in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[K] extends string ? CSSStyleDeclaration[K] : never }
 function mkCss3(nameHint: string, styleObj: CssStyle): string {
     const id = `css${nextCssId++}_${nameHint}`
     let styleSheet = document.styleSheets[0]
