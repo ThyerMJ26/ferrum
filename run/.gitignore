@@ -1,0 +1,3 @@
+# This directory is used for running commands.
+# Any output files, such as shell redirects, or diagnostic logs, should be ignored.
+**/*

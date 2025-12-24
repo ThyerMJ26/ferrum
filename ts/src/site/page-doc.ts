@@ -18,6 +18,7 @@ export type PageDoc = Doc
 export type Doc =
     | UiText
     | Doc[]
+    | { tag: "section", title: UiText, docs: Doc[] }
     | { tag: "para", sentences: Doc[] }
     | { tag: "list", items: Doc[] }
     | { tag: "defns", defns: Defn[] }
@@ -36,6 +37,7 @@ export function docTour(doc: Doc, walk: DocWalker): unit {
     }
     if (typeof doc === "object" && "tag" in doc) {
         switch (doc.tag) {
+            case "section": doc.docs.forEach(d => walk(d)); break
             case "para": doc.sentences.forEach(d => walk(d)); break
             case "list": doc.items.forEach(d => walk(d)); break
             case "defns": doc.defns.forEach(({ defn }) => walk(defn)); break
@@ -67,6 +69,7 @@ export type Defn2 = [UiText, Doc]
 
 export type DocMaker = {
     // title(text: UiText): Doc
+    section(title: UiText, docs: Doc[]): Doc
     para(para: Doc[]): Doc
     list(items: Doc[]): Doc
     defns(defns: Defn[]): Doc
@@ -79,6 +82,7 @@ export type DocMaker = {
 
 export const mkDoc: DocMaker = {
     // title: (title: UiText) => ({ tag: "title", title }),
+    section: (title: UiText, docs: Doc[]) => ({ tag: "section", title, docs}),
     para: (para: Doc[]) => ({ tag: "para", sentences: para }),
     list: (items: Doc[]) => ({ tag: "list", items }),
     defns: (defns: Defn[]) => ({ tag: "defns", defns }),
@@ -94,6 +98,8 @@ export type DocThunk = Doc | (() => unit)
 
 export type DocBuilder = {
     add(doc: Doc): unit
+
+    section(title: UiText, ...docs: Doc[]): Doc
 
     para(...para: Doc[]): Doc
     list(elems: Doc[]): Doc
@@ -123,6 +129,9 @@ export function docBuild(cb: (b: DocBuilder) => unit): Doc {
 
     const b: DocBuilder = {
         add: d => { add(d) },
+        section: (title: UiText, ...docs: Doc[]) => {
+            return add(mkDoc.section(title, docs))
+        },
         para: (...para: Doc[]): Doc => {
             return add(mkDoc.para(para))
         },

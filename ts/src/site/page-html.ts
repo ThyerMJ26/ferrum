@@ -5,7 +5,7 @@ import { unit } from "../utils/unit.js"
 import { Doc, Page } from "./page-doc.js"
 import { AppDefns, AppInstances, FileMap, PageMap } from "./website-builder.js"
 import { UiColor, UiStyle, UiText, uiTextToStr } from "../ui/text.js"
-import { cssDefn, CssDefn, CssName, CssStyle, escapeText, htmlBuild } from "../ui/html.js"
+import { cssDefn, CssDefn, CssName, CssStyle, escapeText, HtmlAttrs, htmlBuild } from "../ui/html.js"
 
 
 export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: string[], doc: Doc): unit {
@@ -25,22 +25,46 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
 
     htmlBuild(styleLines, bodyLines, (s, h) => {
 
+        const section = s.cssStyle({
+            display: "flex",
+            flexDirection: "column",
+            marginBlockEnd: "1em",
+            maxWidth: "100ch",
+            marginLeft: "calc(50% - 50ch)"
+        })
         const paragraph = s.cssStyle({
             display: "flex",
             flexDirection: "column",
             marginBlockEnd: "1em",
+            maxWidth: "100ch",
+            marginLeft: "calc(50% - 50ch)"
         })
         const firstSentence = s.cssStyle({
-            textIndent: "0ch"
+            marginLeft: "4ch",
+            textIndent: "-4ch"
         })
         const subsequentSentence = s.cssStyle({
-            textIndent: "2ch"
+            marginLeft: "4ch",
+            textIndent: "-2ch"
         })
         const linkDescription = s.cssStyle({
             textIndent: "4ch"
         })
         const listItem = s.cssStyle({
             textIndent: "0ch"
+        })
+        const list = s.cssStyle({
+            maxWidth: "100ch",
+            marginTop: "1ch",
+            marginLeft: "calc(50% - 50ch)",
+            textIndent: "0ch",
+            // paddingLeft: "2ch",
+        })
+        const textCol = s.cssStyle({
+            maxWidth: "100ch",
+            marginLeft: "calc(50% - 50ch)",
+            // maxWidth: "100rem",
+            // marginLeft: "calc(50% - 50rem)",
         })
 
 
@@ -49,18 +73,30 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
 
         function d2h(doc: Doc, top: boolean = false): unit {
 
+            // const claas: HtmlAttrs = top ? { class: textCol }  : {}
+            const claas = top ? textCol  : "" as CssName
+
+
             if (typeof doc === "string") {
                 bodyLines.push(escapeText(doc))
                 return
             }
             if (doc instanceof Array) {
                 for (const d of doc) {
-                    d2h(d)
+                    d2h(d, top)
                 }
                 return
             }
             if ("tag" in doc) {
                 switch (doc.tag) {
+                    case "section":
+                        h.elem("section", section, () => {
+                            h.elem("h2", () => {
+                                h.text(doc.title)
+                            })
+                            d2h(doc.docs)
+                        })
+                        break
                     case "para":
                         if (doc.sentences.length === 0) return
                         const [fst, ...rst] = doc.sentences
@@ -77,16 +113,18 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
                         })
                         break
                     case "list":
-                        h.elem("ul", () => {
+                        // h.elem("ul", claas, () => {
+                        h.elem("ul", list, () => {
                             for (const item of doc.items) {
                                 h.elem("li", listItem, () => {
+                                // h.elem("li", () => {
                                     d2h(item)
                                 })
                             }
                         })
                         break
                     case "defns":
-                        h.elem("dl", () => {
+                        h.elem("dl", list, () => {
                             for (const defn of doc.defns) {
                                 h.elem("dt", () => {
                                     d2h(defn.term)
@@ -112,12 +150,17 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
                         const q = JSON.stringify
 
                         const appLines = [
-                            `<div style="width:90vw;height:50vh;"><div id=${topDivId}></div></div>`,
+                            // `<div style="margin-left:calc(50% - 45vw);width:90vw;height:50vh;"><div id=${topDivId}></div></div>`,
+                            // `<div style="margin-left:calc(50% - 50vw);width:100vw;height:50vh;padding:2ch;">`,
+                            `<div style="margin-left:0; width:100%; height:50vh; padding:2ch;">`,
+                            `<div id=${topDivId} style="margin: 2ch;">`,
+                            `</div></div>`,
                             "<script type='module'>",
                             `  import { initApp2 } from ${mod("/ts/gen/ui/browser.js")}`,
                             `  import { ${appDefn.fnName} as app } from ${mod(appDefn.fileName)}`,
                             `  initApp2(${q(topDivId)}, ${q(doc.instance)}, app, ${q(appInstance.args)})`,
                             "</script>",
+                            // "</div>",
                         ]
 
                         bodyLines.push(...appLines)
@@ -125,11 +168,14 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
 
                     case "link-page": {
 
+                        const claas: HtmlAttrs = top ? { class: textCol }  : {}
+
                         const srcFile = path.resolve(path.dirname(ctx.srcFile), doc.page)
                         const entry = ctx.pageMap.get(srcFile)
                         if (entry !== undefined) {
                             const href = entry[0].urlPath
-                            h.elem("a", { href }, () => {
+                            // h.elem("a", { href, class: textCol }, () => {
+                            h.elem("a", { href, ...claas }, () => {
                                 const text = doc.text ?? href
                                 // TODO ? Use the title from the page itself ?
                                 // TODO ? We'll need to generate (or have generated) each page linked to so as to render this page.
@@ -144,9 +190,15 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
 
                         const desc = doc.desc
                         if (desc !== undefined) {
-                            h.elem("br")
-                            h.elem("div", linkDescription, () => {
-                                d2h(desc)
+                            // h.elem("br")
+                            // h.elem("div", linkDescription, () => {
+                            //     d2h(desc)
+                            // })
+                            h.elem("span", claas, () => {
+                                h.elem("br")
+                                h.elem("div", [linkDescription, textCol], () => {
+                                    d2h(desc)
+                                })
                             })
                         }
 
@@ -263,7 +315,10 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
         "<style>",
         "html { box-sizing: border-box; }",
         "*, *:before, *:after { box-sizing: inherit; }",
-        "body { font-family: sans-serif; max-width: 100ch; margin: auto; line-height: 1.5; }",
+        // "body { font-family: sans-serif; max-width: 100ch; margin: auto; line-height: 1.5; }",
+        // "body { margin: auto; width: 100vw; height: 100vh; font-family: sans-serif; max-width: 100ch; line-height: 1.5; }",
+        "body { font-family: sans-serif; margin: auto; line-height: 1.5; }",
+        // "h1 { margin-left: calc(50% - 50ch); max-width: 100ch; }",
         ...styleLines,
         "</style>",
         "</head>",
@@ -296,9 +351,11 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
     }
 
     if (typeof page.head.title === "string") {
+        lines.push('<div style="margin-left: calc(50% - 50ch); width: 100ch;">')
         lines.push("<h1>")
         lines.push(page.head.title)
         lines.push("</h1>")
+        lines.push("</div>")
     }
 
     lines.push(...bodyLines)

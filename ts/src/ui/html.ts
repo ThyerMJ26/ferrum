@@ -32,7 +32,7 @@ type AbnormalTag = keyof AbnormalTagTypes
 
 function isTagAbnormal(tag: HtmlTag): tag is AbnormalTag {
     return tag in abnormalTagTypes
-} 
+}
 
 function typeOfTag(tag: HtmlTag): TagType {
     if (isTagAbnormal(tag)) {
@@ -200,8 +200,8 @@ export type HtmlBuilder = {
 
     elem(tag: HtmlTag): unit
     elem(tag: HtmlTag, cb: () => unit): unit
-    elem(tag: HtmlTag, attrs: HtmlAttrs | CssName): unit
-    elem(tag: HtmlTag, attrs: HtmlAttrs | CssName, cb: () => unit): unit
+    elem(tag: HtmlTag, attrs: HtmlAttrs | CssName | CssName[]): unit
+    elem(tag: HtmlTag, attrs: HtmlAttrs | CssName | CssName[], cb: () => unit): unit
 
     // TODO ? Allow a chunk of HTML to be added in one go ?
     // html(h: Html): unit
@@ -395,8 +395,13 @@ export function htmlBuild(styleLines: string[], htmlLines: string[], cb: (sb: St
     function elemToHtml2(tag: HtmlTag, ...args: any[]): unit {
         let attrs: HtmlAttrs | undefined
         let cb: (() => unit) | undefined
-        if (args.length > 0 && typeof args[0] === "string") {
-            attrs = { class: args.shift() }
+        if (args.length > 0 && (typeof args[0] === "string" || args[0] instanceof Array)) {
+            let arg: string | string[] = args.shift()
+            if (arg instanceof Array) {
+                assert.isTrue(arg.every(a => typeof a === "string"))
+                arg = arg.join(" ")
+            }
+            attrs = { class: arg }
         }
         if (args.length > 0 && !(args[0] instanceof Function)) {
             attrs = args.shift()
@@ -418,10 +423,10 @@ export function htmlBuild(styleLines: string[], htmlLines: string[], cb: (sb: St
     }
     function textStyle(s: UiStyle, nameHint?: string): CssName {
         const ps = mkUiStyle(styleMap, s, nameHint ?? null)
-        styleLines.push(`.${ps.cssName} { ${ps.cssDefn } }`)
+        styleLines.push(`.${ps.cssName} { ${ps.cssDefn} }`)
         return ps.cssName as CssName
     }
-    
+
     const hb: HtmlBuilder = {
         text: textToHtml,
         elem: elemToHtml2,
