@@ -56,7 +56,7 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
         const list = s.cssStyle({
             maxWidth: "100ch",
             marginTop: "1ch",
-            marginLeft: "calc(50% - 50ch)",
+            // marginLeft: "calc(50% - 50ch)",
             textIndent: "0ch",
             // paddingLeft: "2ch",
         })
@@ -74,7 +74,7 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
         function d2h(doc: Doc, top: boolean = false): unit {
 
             // const claas: HtmlAttrs = top ? { class: textCol }  : {}
-            const claas = top ? textCol  : "" as CssName
+            const claas = top ? textCol : "" as CssName
 
 
             if (typeof doc === "string") {
@@ -91,9 +91,11 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
                 switch (doc.tag) {
                     case "section":
                         h.elem("section", section, () => {
-                            h.elem("h2", () => {
-                                h.text(doc.title)
-                            })
+                            if (doc.title !== "") {
+                                h.elem("h2", () => {
+                                    h.text(doc.title)
+                                })
+                            }
                             d2h(doc.docs)
                         })
                         break
@@ -117,7 +119,7 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
                         h.elem("ul", list, () => {
                             for (const item of doc.items) {
                                 h.elem("li", listItem, () => {
-                                // h.elem("li", () => {
+                                    // h.elem("li", () => {
                                     d2h(item)
                                 })
                             }
@@ -168,39 +170,39 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
 
                     case "link-page": {
 
-                        const claas: HtmlAttrs = top ? { class: textCol }  : {}
+                        const claas: HtmlAttrs = top ? { class: textCol } : {}
+                        const elem = top ? "div" : "span"
 
-                        const srcFile = path.resolve(path.dirname(ctx.srcFile), doc.page)
-                        const entry = ctx.pageMap.get(srcFile)
-                        if (entry !== undefined) {
-                            const href = entry[0].urlPath
-                            // h.elem("a", { href, class: textCol }, () => {
-                            h.elem("a", { href, ...claas }, () => {
-                                const text = doc.text ?? href
-                                // TODO ? Use the title from the page itself ?
-                                // TODO ? We'll need to generate (or have generated) each page linked to so as to render this page.
-                                // TODO ? Generating precedes rendering, so this wouldn't be potentially cyclic.
-                                // const text = doc.text ?? title
-                                h.text(text)
-                            })
-                        }
-                        else {
-                            h.text(`(Bad Page Link: ${JSON.stringify(srcFile)})`)
-                        }
+                        h.elem(elem, () => {
 
-                        const desc = doc.desc
-                        if (desc !== undefined) {
-                            // h.elem("br")
-                            // h.elem("div", linkDescription, () => {
-                            //     d2h(desc)
-                            // })
-                            h.elem("span", claas, () => {
-                                h.elem("br")
-                                h.elem("div", [linkDescription, textCol], () => {
-                                    d2h(desc)
+                            const srcFile = path.resolve(path.dirname(ctx.srcFile), doc.page)
+                            const entry = ctx.pageMap.get(srcFile)
+                            if (entry !== undefined) {
+                                const href = entry[0].urlPath
+                                // h.elem("a", { href, class: textCol }, () => {
+                                h.elem("a", { href, ...claas }, () => {
+                                    const text = doc.text ?? href
+                                    // TODO ? Use the title from the page itself ?
+                                    // TODO ? We'll need to generate (or have generated) each page linked to so as to render this page.
+                                    // TODO ? Generating precedes rendering, so this wouldn't be potentially cyclic.
+                                    // const text = doc.text ?? title
+                                    h.text(text)
                                 })
-                            })
-                        }
+                            }
+                            else {
+                                h.text(`(Bad Page Link: ${JSON.stringify(srcFile)})`)
+                            }
+
+                            const desc = doc.desc
+                            if (desc !== undefined) {
+                                h.elem("span", claas, () => {
+                                    h.elem("div", [linkDescription, textCol], () => {
+                                        d2h(desc)
+                                    })
+                                })
+                            }
+
+                        })
 
                         break
                     }
@@ -251,7 +253,7 @@ export function docToHtml(ctx: PageHtmlCtx, styleLines: string[], bodyLines: str
                 return
             }
             else {
-                // A UiText value with no items has nothing to render statically.
+                // A UiText object with no items has nothing to render statically.
                 // It might contain an "id" or "annot" field, but those are for use in dynamic situations.
             }
 
@@ -323,6 +325,7 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
         "</style>",
         "</head>",
         "<body>",
+        "<hr style='margin: 4ch'>"
     ]
 
     // By default, only include the app-scripts if there are apps within the page.
@@ -359,6 +362,8 @@ export function pageToHtml(ctx: PageHtmlCtx, opts: PageHtmlOptions, page: Page):
     }
 
     lines.push(...bodyLines)
+    // lines.push("<p style='height: 2ch'><hr><p>")
+    lines.push("<hr style='margin: 4ch'>")
 
     return lines
 }

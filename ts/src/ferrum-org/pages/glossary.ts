@@ -13,7 +13,9 @@ export function page(): Page {
     return pageBuild(b => {
         b.title("Glossary");
 
-        b.defns(definitions)
+        b.section("",
+            b.defns(definitions)
+        )
     })
 }
 

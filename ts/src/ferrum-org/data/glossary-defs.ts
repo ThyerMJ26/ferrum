@@ -90,7 +90,7 @@ export const definitions: Defn2[] = [
         "For pattern-variables, the context-type is used.",
         "For literals, the singleton-type containing only that literal-value."
     ),
-    def("context-type", "The type in the AST determined from the parents context-type."),
+    def("context-type", "The type for a term calculated from its parent's context-type, and the synthesized types of zero or more of its siblings."),
     def("type-inhabitation", "A type is inhabited if it contains at least one term."),
     def("relative-complement", "TODO"),
     def("Void", "The type that contains no terms."),
