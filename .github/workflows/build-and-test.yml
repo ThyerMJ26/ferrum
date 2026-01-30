@@ -1,0 +1,29 @@
+name: build-and-test
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./run
+
+    steps:
+
+      - name: Check out the repository 
+        uses: actions/checkout@v5
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install modules
+        run: ../cmds/install
+      
+      - name: Test short 1
+        run: ../cmds/runtest ../tests/short.test.fe
+        
+      - name: Test short 2
+        run: ../cmds/runtest -g=TD ../tests/short.test.fe
