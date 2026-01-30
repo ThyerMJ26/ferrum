@@ -15,7 +15,7 @@ language ferrum/test/0.1
       let c = a + b;
   """
   ]
-  , ["expectValue", "c", "3"]
+  , ["expectValue", "c", "33"]
   , ["expectType",  "c", "Int"]
   ]
 

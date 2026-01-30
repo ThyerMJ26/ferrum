@@ -20,3 +20,11 @@ node \
     --stack-size=4000 \
     --max-heap-size=16000 \
     "$ferrumDir"/ts/gen/cmds/runtest-nodejs.js "$@"
+
+exitCode=$?
+echo "EXIT CODE" $exitCode 
+
+# Go beep at the end
+echo $'\x7'
+
+exit $exitCode
