@@ -4,7 +4,14 @@ ulimit -s unlimited
 
 export ferrumDir=$(realpath $(dirname "$0")/..)
 export ferrumFeInFeDir=$(realpath $(dirname "$0")/../fe/fe-in-fe)
-export ferrumTestDir=$(realpath $(dirname "$0")/../tests)
+
+# We can either have the fe-in-fe test-runner look use the main tests (as used by fe-in-ts).
+# export ferrumTestDir=$(realpath $(dirname "$0")/../tests)
+# Or use its own copy of the tests.
+# Using the same seems more rigorous, 
+#   but keeping everything in sync is an impediment to experimentation and progress.
+export ferrumTestDir=$(realpath $(dirname "$0")/../fe/fe-in-fe/tests)
+
 echo BASH ferrumDir: $ferrumDir
 echo BASH ferrumFeInFeDir: $ferrumFeInFeDir
 echo BASH ferrumTestDir: $ferrumTestDir
