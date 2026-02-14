@@ -32,6 +32,7 @@ export type DeclAddr = Decl<{ addr: Addr }>
 
 function scopedRefCount(h: Heap, rootDepth: Depth, rbAssoc: RbAssoc, addr: Addr): ScopedRefCounts {
 
+
     const initCtx: LetBindCtx[] = []
     for (let d = 0; d <= rootDepth; d++) {
         initCtx.push({ depth: rootDepth, addr: null })
@@ -93,6 +94,10 @@ function scopedRefCount(h: Heap, rootDepth: Depth, rbAssoc: RbAssoc, addr: Addr)
     return scopedRcs
 }
 
+// TODO Short strings (enum-like) are not worth sharing.
+// TODO Long string (entire file contents) are worth sharing.
+// TODO Calls to "primitive" are not worth sharing, if they are bound to an opaque name.
+// TODO   It's better to see (primitive "loop" ...) than (v0_57 ...)
 function isWorthSharing(h: Heap, addr: Addr): boolean {
     const arity = h.nodeArity(addr)
     return arity > 0
@@ -123,6 +128,12 @@ export function calcAddrsToLetBind(h: Heap, rootDepth: Depth, rbAssoc: RbAssoc, 
             rcsBs.set(addr, new Map)
         }
 
+        // const break_on = [25976, 25967, 27881]
+        // if (break_on.indexOf(addr) !== -1) {
+        //     assert.breakpoint()
+        // }
+
+
         const rb = rbAssoc.get(addr)
         if (rb !== undefined) {
             continue
@@ -130,12 +141,15 @@ export function calcAddrsToLetBind(h: Heap, rootDepth: Depth, rbAssoc: RbAssoc, 
 
         const depth = h.depthOf(addr)
 
+        // This is the depth of the node by which we have reached this addr.
+        const ctxDepth = ctx.at(-1)!.depth
         while (ctx.length !== 0 && ctx.at(-1)!.depth > depth) {
             ctx.pop()
         }
         if (ctx.length === 0 || ctx.at(-1)!.depth > depth) {
             throw new Error("bad ctx")
         }
+        // This is the address of the enclosing lambda (or null, if top-level) for the addr.
         const ctxAddr = ctx.at(-1)!.addr
         let childCtx: LetBindCtx[]
         if (h.isTmLam(addr) || h.isTyFun(addr)) {
@@ -163,11 +177,9 @@ export function calcAddrsToLetBind(h: Heap, rootDepth: Depth, rbAssoc: RbAssoc, 
             todo.push(...more)
         }
 
-        const ctxDepth = ctx.at(-1)!.depth
         if (isWorthSharing(h, addr) && (rcA === rcB + 1) && (rcA > 1 || depth < ctxDepth)) {
             const prevLb = alb.get(ctxAddr)
             // assert.isFalse(ctxAddr === null && h.depthAt(addr) > 0)
-            // if (addr === 1858) assert.breakpoint("1858")
             if (prevLb === undefined) {
                 alb.set(ctxAddr, [addr])
             }
@@ -260,6 +272,11 @@ export function readback0(h: Heap, rbLetEnv0: RbLetEnv, rbLamEnv: RbLamEnv, unre
     function addrToExprOrName(rbLetEnv: RbLetEnv, rbLamEnv: RbLamEnv, rbAssoc: RbAssoc, tmTyCtx: TorT, addr0: Addr): ExprAddr {
         // const addr = heap.directAddrOf(addr0)
         const addr = addr0
+
+        // const break_on = [25976, 25967]
+        // if (break_on.indexOf(addr) !== -1) {
+        //     assert.breakpoint()
+        // }
 
         // TODO Check is worth sharing, 
         // TODO Datums such as nil are picking up whatever name was last bound to them,
@@ -360,6 +377,12 @@ export function readback0(h: Heap, rbLetEnv0: RbLetEnv, rbLamEnv: RbLamEnv, unre
         // ( this pacifies the parts of the HeapIface which help prevent accidental use of indirect addresses )
         assumeIsDirect(addr)
 
+        // const break_on = [25976, 25967]
+        // if (break_on.indexOf(addr) !== -1) {
+        //     assert.breakpoint()
+        // }
+
+
         // TODO Stop using nodeTags, use the new nodeGuide/nodeVisitor
         const nodeTag = h.nodeTag(addr)
         const depth = h.depthOf(addr)
@@ -452,8 +475,11 @@ export function readback0(h: Heap, rbLetEnv0: RbLetEnv, rbLamEnv: RbLamEnv, unre
             case "TmTyAnnot": {
                 assert.isTrue(h.isTmTyAnnot(addr))
                 const tmExp = addrToExprOrName(rbLetEnv, rbLamEnv, rbAssoc, "Term", h.term_tm(addr))
-                const tyExp = addrToExprOrName(rbLetEnv, rbLamEnv, rbAssoc, "Term", h.typeOf(addr))
-                return bracket("Term", tmTyCtx, { tag: "EType", expr: tmExp, type: tyExp, addr: addrAnnot })
+                // TODO ? Make the read-back of type-annotations optional ?
+                // TODO ? 
+                // const tyExp = addrToExprOrName(rbLetEnv, rbLamEnv, rbAssoc, "Term", h.typeOf(addr))
+                // return bracket("Term", tmTyCtx, { tag: "EType", expr: tmExp, type: tyExp, addr: addrAnnot })
+                return tmExp
             }
 
             case "TySingleStr": {
@@ -533,7 +559,7 @@ export function readback0(h: Heap, rbLetEnv0: RbLetEnv, rbLamEnv: RbLamEnv, unre
     }
 
     const decls: DeclAddr[] = []
-    letBindings.forEach((lb, idx) => {
+    letBindings.slice().reverse().forEach((lb, idx) => {
         const letVarName = `v${rootDepth}_${idx + 1}`
         const expr = addrToExprOrName(rbLetEnv, rbLamEnv, rbAssoc, tmTyCtx, lb)
         const decl: DeclAddr = [{ tag: "EVar", name: letVarName, addr: lb }, expr]

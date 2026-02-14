@@ -1,0 +1,10 @@
+language ferrum/proj/0.1
+
+[ "project", 
+  [ ["primitives", "../fe-in-fe/fe4-primitives.fe"]
+  , ["code", "../fe-in-fe/fe4-prelude.fe"]
+  ]
+]
+
+
+

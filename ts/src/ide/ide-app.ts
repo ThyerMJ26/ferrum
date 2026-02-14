@@ -14,7 +14,7 @@ import { getIo } from "../io/io.js"
 // UI
 import { PortRw, PortR, NodeState, PortW } from "../ui/reactive.js"
 import { Ui, PanelView, App, TabbedView, View, ViewCtx } from "../ui/app-ui.js"
-import { uiText, UiText, uiTextA, uiTextI, uiTextList, uiTextS } from "../ui/text.js";
+import { uiText, UiText, uiTextA, uiTextI, uiTextList, uiTextS, uiTextToStr } from "../ui/text.js";
 import { Fuel, fuelMk } from "../ui/fuel.js";
 import { AppIo } from "../ui/app-server.js";
 
@@ -1577,6 +1577,10 @@ function mkHeapTab<U>(
 
         const exprD = pf.pExpr(expr)
         const exprStr = pShow(prettyFerrumStyleNums.std, exprD.doc)
+
+        // const txt = uiTextToStr(exprStr)
+        // console.log("PRETTY", txt)
+
         return exprStr
 
     })
@@ -1613,6 +1617,9 @@ function mkHeapTab<U>(
                 }
             }
         }
+
+        // const txt = uiTextToStr(exprStr)
+        // console.log("PRETTY2", txt)
 
         return exprStr
     })

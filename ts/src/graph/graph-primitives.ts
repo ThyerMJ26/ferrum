@@ -3186,7 +3186,7 @@ export function mkPrims(): Primitives {
             }
             return null
         })
-        builtinId("strLen", [weak], parseTy("Str -> Int"), () => null)
+        builtinId("strLen", [weak], parseTy("Str -> Int"), mkDatum1Action("string", (a: any) => a.length))
         builtinId("error", [weak], parseTy("Any -> Void"), () => null)
         builtinId("unknownVariable", [weak], parseTy("Str -> Any"), () => null)
         builtinId("unknownPrimitive", [weak], parseTy("Str -> Any -> Any"), () => null)
@@ -3206,6 +3206,89 @@ export function mkPrims(): Primitives {
         builtinId("strOrd", [weak], parseTy("Str -> Int"), mkDatum1Action("string", (a: any) => a.charCodeAt(0)))
         // TODO ? Rename: charFromInt
         builtinId("strChr", [weak], parseTy("Int -> Char"), mkDatum1Action("number", (a: any) => String.fromCharCode(a)))
+
+
+        builtinId("jsStrJoin",    /**/[weak, weak], parseTy('{ Str -> (List Str) -> Str }'), (depth, [a0, b0]) => {
+            const parts: string[] = []
+            let sep = h.directAddrOf(a0)
+            let elems = h.directAddrOf(b0)
+
+            let sepVal: Datum
+            let sepStr: string
+            if (h.isTmDatum(sep) && (sepVal = h.datum_tm(sep), typeof sepVal === "string")) {
+                sepStr = sepVal
+            }
+            else {
+                return null
+            }
+
+            while (h.isTmPair(elems)) {
+                const hd = h.directAddrOf(h.hd_tm(elems))
+                const tl = h.directAddrOf(h.tl_tm(elems))
+                let hdVal: Datum
+                if (h.isTmDatum(hd) && (hdVal = h.datum_tm(hd), typeof hdVal === "string")) {
+                    parts.push(hdVal)
+                }
+                else {
+                    return null
+                }
+                elems = tl
+            }
+            let tlVal: Datum
+            if (h.isTmDatum(elems) && (tlVal = h.datum_tm(elems), tlVal === null)) {
+                const result = parts.join(sepStr)
+                return h.tmDatum(result, depthZero, tyStr)
+
+            }
+            else {
+                return null
+            }
+        })
+
+        builtinId("not",          /**/[weak], parseTy('{ Bool -> Bool }'), mkDatum1Action("boolean", (a: any) => !a))
+        builtinId("strCharAt",    /**/[weak, weak], parseTy('{ Str -> Int -> Char }'),
+            mkDatum2Action("string", "number", (a: any, b: any) => (a as string).charAt(b))
+        )
+
+        builtinId("strCharAtMb",  /**/[weak, weak], parseTy('{ Str -> Int -> [] | [Char] }'), (depth, [a0, b0]) => {
+            const a = h.directAddrOf(a0)
+            const b = h.directAddrOf(b0)
+
+            let strVal: Datum
+            let posVal: Datum
+
+            if (h.isTmDatum(a) && (strVal = h.datum_tm(a), typeof strVal === "string")) {
+                if (h.isTmDatum(b) && (posVal = h.datum_tm(b), typeof posVal === "number")) {
+                    const resultStr = strVal.charAt(posVal)
+                    if (resultStr === "") {
+                        return nilTerm
+                    }
+                    else {
+                        return h.tmPair(h.tmDatum(resultStr, depthZero, tyStr), nilTerm, depth)
+                    }
+                }
+            }
+
+            return null
+        })
+        builtinId("trace2",       /**/[weak, weak], parseTy('{ Any -> K @ { -> Any} -> K [] }'), (depth, [a0, b0]) => {
+            const msg = readbackData(h, a0)
+            const k = h.directAddrOf(b0)
+
+            // TODO ? Check if the message is fully reduced ?
+            // TODO ? Or perhaps that should be the caller's responsibility.
+            // TODO   Reducing "trace" too soon, means we get uninformative messages.
+            // TODO   Reducing "trace" too late, means specialization will possibly be prevented.
+            // TODO ? Perhaps it should be used as:
+            // TODO     a $?
+            // TODO     trace ["msg", a] <| ->
+            // TODO     ...
+            // TODO The "a $?" prevents "trace" meeting "[msg, a]" before "a" is known.
+            console.log("GraphPrim Trace:", msg)
+
+            const result = h.tmApply(k, nilTerm, depth)
+            return result
+        })
 
 
         builtinTermOp("<$", [weak, weak], parseTy("F @ { Void -> Any } -> X @ (Dom F) -> F X"), (depth, [a0, b0]) => {
@@ -3320,13 +3403,6 @@ export function mkPrims(): Primitives {
             return null
         })
 
-        // These are needed by code in fe4-prelude.fe
-        builtinTODO("jsStrJoin",    /**/[weak, weak], parseTy('{ Str -> (List Str) -> Str }'))
-        builtinTODO("not",          /**/[weak], parseTy('{ Bool -> Bool }'))
-        builtinTODO("strCharAt",    /**/[weak, weak], parseTy('{ Str -> Int -> Char }'))
-        builtinTODO("strCharAtMb",  /**/[weak, weak], parseTy('{ Str -> Int -> [] | [Char] }'))
-        builtinTODO("trace2",       /**/[weak, weak], parseTy('{ Any -> K @ { -> Any} -> K [] }'))
-
 
         function primTODO(name: string, type?: string): [string, string] {
             const typeAnnot = type === undefined ? "" : ` : ${type}`
@@ -3396,15 +3472,24 @@ export function mkPrims(): Primitives {
             // primTODO("primAssoc1MkEphemeral"),
             // primTODO("primAssoc1MkPersistent"),
             // primTODO("primHpsCall"),
+
             // primTODO("primHpsDo"),
             // primTODO("primHpsDoK"),
             // primTODO("primHpsHandlerMk"),
+
+            ["primHpsDo", "action -> handler -> action (result -> handler -> [handler, result]) handler"],
+            ["primHpsCall", "action -> handler -> action (result -> handler -> result) handler"],
+            ["primHpsHandlerMk", "handlerMk -> initState -> handlerMk initState"],
+
+
             // primTODO("primHpsK"),
             // primTODO("show2"),
             // primTODO("showType"),
             // primTODO("tail"),
 
             // primTODO("ioDoPrim"),
+
+            // ["strCharAtMb", 'str -> pos -> let ch = strCharAt str pos; if (ch=="") [ -> [], -> [ch]]'],
 
         ]
 

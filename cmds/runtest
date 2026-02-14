@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+set -u # An unset variable is an error.
+set -e # Exit on first error.
+set -o pipefail # A pipeline fails if any command in the pipeline fails.
+# set -x # Display every command.
+trap "echo $'\x7'" EXIT # Go beep at the end.
 
 ulimit -s unlimited
 
@@ -21,10 +26,7 @@ node \
     --max-heap-size=16000 \
     "$ferrumDir"/ts/gen/cmds/runtest-nodejs.js "$@"
 
-exitCode=$?
-echo "EXIT CODE" $exitCode 
 
-# Go beep at the end
-echo $'\x7'
-
-exit $exitCode
+# exitCode=$?
+# echo "EXIT CODE" $exitCode 
+# exit $exitCode

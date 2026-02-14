@@ -108,6 +108,7 @@ export const prettyFerrum = (expr: Expr): string => {
 
 
 const pFeIndentIncrement = 4;
+// const pFeIndentIncrement = 0;
 const pMaxLineLen = 40;
 
 // TODO ? Permit UiText annotations within pretty docs ?
@@ -899,7 +900,7 @@ export function mkPrettyFerrum(maxIndent = 40, maxWidth = 40, styles: PrettyFerr
                     lastPairED = { ...lastPair, id: genId(), hd: lastElem, tl, doc }
                 }
                 else {
-                    tl = pE1([expr.tag, 1], expr.tl)
+                    tl = pE1([list.tag, 1], list)
                     const doc = pHV(lastElem.doc, pText(indent, lastStyle, ",,"), tl.doc, pText(indent, lastStyle, "]"))
                     lastPairED = { ...lastPair, id: genId(), hd: lastElem, tl, doc }
                 }
@@ -1336,7 +1337,7 @@ export function mkPrettyFerrum2(
                 }
                 else {
                     const lastPairId = genId()
-                    tl = pE1([expr.tag, 1], expr.tl)
+                    tl = pE1([list.tag, 1], list)
                     const doc = pHVA(lastPairId, lastElem.doc, pTextN(indent, lastStyle, ",,"), tl.doc, pText(indent, lastStyle, "]"))
                     lastPairED = { ...lastPair, id: lastPairId, hd: lastElem, tl, doc }
                     mapListPush(addrIdsMap, (lastPair as ExprAddr).addr, lastPairId)

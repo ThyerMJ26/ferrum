@@ -126,13 +126,16 @@ export async function main2(cmdLineValues: RunTestCmdLine, testDirUlr: URL, file
     codeRunnerName ??= "8"
     mkCodeRunner = codeRunnerMakers[codeRunnerName]
 
-    let ok = false
     try {
-        ok = await main3(testDirUlr, fileUrl, testName, mkOpts(opts), codeRunnerName)
+        const ok = await main3(testDirUlr, fileUrl, testName, mkOpts(opts), codeRunnerName)
+        return ok
+    }
+    catch (exc) {
+        console.error("Unhandled exception while running test:", exc)
+        return false
     }
     finally {
         memo.saveToFile()
-        return ok
     }
 }
 

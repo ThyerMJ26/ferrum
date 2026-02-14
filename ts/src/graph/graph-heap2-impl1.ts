@@ -2037,6 +2037,9 @@ export function mkHeap_AoUoS(): Heap {
             const addr = nextAddr()
             addrMemo.addr = addr
             contents.push({ indirect: null, copy: null, value: { depth: depth, form: formNone, node, ty: ty, targetForm } })
+            // if (contents.length % 1000 === 0) {
+            //     console.log("HEAP SIZE", contents.length)
+            // }
         }
         // Perform a deep equals to check the addr contains the expected value.
         //   It could fail if new fields are added to Node but nodeToKey isn't updated.
@@ -2057,6 +2060,10 @@ export function mkHeap_AoUoS(): Heap {
     }
 
     function heap_link(from: Addr, to: Addr): unit {
+
+        // if (from === 11503) {
+        //     assert.breakpoint()
+        // }
 
         to = directAddrOf(to)
 

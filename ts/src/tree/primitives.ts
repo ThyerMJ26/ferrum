@@ -153,6 +153,13 @@ function tracePrim2(args: Node[]): Node {
     return b
 }
 
+function trace2Prim2(args: Node[]): Node {
+    let [a, b] = args
+    let msg = "Trace: " + showValueFe(a)
+    console.log(msg)
+    return apply(b, node(atomicValue(null)))
+}
+
 function errorPrim2(args: Node[]): Node {
     let [a] = args
     let value = showValueFe(a)
@@ -589,6 +596,21 @@ let strJoinPrim = (args: Node[]): Node => {
     return node(atomicValue(resultStr))
 }
 
+function strCharAtMbPrim(args: Node[]): Node {
+    const [a, b] = args
+    const a2 = evalNode(a)
+    const b2 = evalNode(b)
+    if (a2.tag !== "atomic" || typeof (a2.value) !== "string") {
+        throw new Error(`expected a string, not (${JSON.stringify(a2)})`)
+    }
+    if (b2.tag !== "atomic" || typeof (b2.value) !== "number") {
+        throw new Error(`expected a number, not (${JSON.stringify(b2)})`)
+    }
+    const ch = a2.value.charAt(b2.value)
+    if (ch === undefined) return node(atomicValue(null))
+    return node(pairValue(node(atomicValue(ch)), node(atomicValue(null))))
+}
+
 let hpsDoK = (args: Node[]): Node => {
     let [result, handler] = args
     return node(pairValue(handler, node(pairValue(result, node(atomicValue(null))))))
@@ -677,7 +699,7 @@ const primTable: PrimTable = {
         ruleT("rangeT", [ruleT("elemT", [varT("K")])])))],
 
     "trace": [2, tracePrim2, funT(anyT, funPT("T", anyT, varT("T")))],
-    "trace2": [2, tracePrim2, funT(anyT, funPT("T", funT(nilT, anyT), rangeT(varT("T"))))],
+    "trace2": [2, trace2Prim2, funT(anyT, funPT("T", funT(nilT, anyT), rangeT(varT("T"))))],
     "error": [1, errorPrim2, funT(anyT, errorT)],
     "show": [1, showPrim2, funT(anyT, strT)],
     "show2": [1, showPrimFe, funT(anyT, strT)],
@@ -815,7 +837,7 @@ const primTable: PrimTable = {
     "strLen": [1, mkUnaryFunction2((a) => a.length), funT(strT, intT)],
     "strAdd": [2, mkBinaryFunction2((a, b) => a + b), funT(strT, funT(strT, strT))],
     "strCharAt": [2, mkBinaryFunction2((a, b) => a.charAt(b)), funT(strT, funT(intT, strT))],
-    "strCharAtMb": [2, mkBinaryFunction2((a, b) => a.charAt(b)), funT(strT, funT(intT, maybeT(charT)))],
+    "strCharAtMb": [2, strCharAtMbPrim, funT(strT, funT(intT, maybeT(charT)))],
 
     "jsStrCat": [1, strCatPrim, funT(listT(strT), strT)],
     "jsStrJoin": [2, strJoinPrim, funT(strT, funT(listT(strT), strT))],

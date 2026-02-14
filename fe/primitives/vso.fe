@@ -116,7 +116,7 @@ language ferrum/0.1
     let ifBool = primitive "ifBool";
     let ifStr  = primitive "ifStr";
     let ifPair = primitive "ifPair";
-    -- let ifType = primitive "ifType";
+    let ifType = primitive "ifType";
 
     -- Strings
     let strOrd      = primitive "strOrd";
@@ -135,4 +135,15 @@ language ferrum/0.1
     let primHpsCall      = primitive "primHpsCall";
     let primHpsHandlerMk = primitive "primHpsHandlerMk";
 
+    -- JS evaluation
+    let jsEval      = primitive "jsEval";
+    let jsEvalMaybe = primitive "jsEvalMaybe";
 
+    -- -- Io
+    let ioDoPrim = primitive "ioDoPrim";
+
+    -- -- Array / Assoc (object / intersected-function interface to aggregate data-structures)
+    let primMkArrayFastAccessSlowCopy = primitive "primMkArrayFastAccessSlowCopy";
+    let primMkArrayFastAccessNoCopy   = primitive "primMkArrayFastAccessNoCopy";
+    let primAssoc1MkPersistent        = primitive "primAssoc1MkPersistent";
+    let primAssoc1MkEphemeral         = primitive "primAssoc1MkEphemeral";

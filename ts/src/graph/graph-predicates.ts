@@ -94,8 +94,18 @@ export function graphPredicatesMk(h: Heap): GraphPredicates {
             return false
         }
 
-        const a = h.directAddrOf(aMb)
-        const b = h.directAddrOf(bMb)
+        let a = h.directAddrOf(aMb)
+        let b = h.directAddrOf(bMb)
+
+        // Skip past term-type annotation nodes, when comparing terms.
+        while (h.isTmTyAnnot(a)) {
+            a = h.directAddrOf(h.term_tm(a))
+        }
+        while (h.isTmTyAnnot(b)) {
+            b = h.directAddrOf(h.term_tm(b))
+        }
+
+
 
         if (unknownEqualsUnknown) {
             if (a === b) {

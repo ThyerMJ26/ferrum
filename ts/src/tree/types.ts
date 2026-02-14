@@ -1219,7 +1219,7 @@ export function recT(name: string, body: Type): Type {
 export function selfT(name: string, body: Type): Type {
     let fv = typeFreeVars(body)
     if (body.tag === "TSelf") {
-        console.log("TSelf nested")
+        // console.log("TSelf nested")
         // return { tag: "TSelf", name: name, body: substType(body.body, body.name, varT(name), false) }
     }
     if (fv.indexOf(name) === -1) {

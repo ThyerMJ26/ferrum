@@ -6,13 +6,14 @@ import { mkEnv } from "../utils/env.js"
 
 // Syntax
 import {
-    DeclLoc, DeclTypeBidir, eDatum, eTypeAnnot, EVar, eVar, ExprLoc, exprAddNilLoc, ExprTree, ExprTypeBidir, showExp2, showExpConcise, visitAll, visitChildren, visitParentOrChildren
+    DeclLoc, DeclTypeBidir, eDatum, eTypeAnnot, EVar, eVar, ExprLoc, exprAddNilLoc, ExprTree, ExprTypeBidir, showExp2, showExpConcise, visitAll, visitChildren, visitParentOrChildren,
+    exprSize, exprParts,
 } from "../syntax/expr.js"
 import { scan2Fe, scanFile } from "../syntax/scan.js"
 import { ParseState } from "../syntax/parse.js"
 import { parseTerm, parseType, parseFile } from "../syntax/parseFerrum2.js"
 import { locMatch, mkLoc, mkPos, nilLoc, Pos, showLoc } from "../syntax/token.js"
-import { prettyFerrum } from "../syntax/pretty-ferrum.js"
+import { mkPrettyFerrum, prettyFerrum, prettyFerrum2, prettyFerrumStyleDefns, pShow } from "../syntax/pretty-ferrum.js"
 
 // Tree
 import { Env, getPrimEnv } from "../tree/eval.js"
@@ -38,6 +39,10 @@ import { GraphApply, mkGraphApply } from "./graph-apply.js"
 
 // Codegen
 import { CodeRunner, codeRunnerMakers, CodeRunnerName } from "../codegen/code-runners.js"
+
+// Ui
+import { createDummyStyles } from "../ui/app-ui.js"
+import { uiTextLength, uiTextToStr } from "../ui/text.js"
 
 //#region TcSummary
 
@@ -299,7 +304,7 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
     _fullEnv: Env = {}
     _localEnv: Env = {}
     _fullEnvG: GraphEnvRo | null = null
-    _bindings: Bindings[] = []
+    _bindings: Bindings[] = [] // A list of list of name/addr objects.
     // TODO ? // declsGr: DeclTypeGraph[]
 
     isInstantiated = false
@@ -349,7 +354,8 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
     }
 
     log(col: string, ...msgs: string[]): unit {
-        console.log("CT", this.name(), col, ...msgs)
+        // console.log("CT", this.name(), col, ...msgs)
+        console.log("CT", col.padEnd(15), this.name(), ...msgs)
     }
 
     typeCheckTr(cb?: TypeCheckTr_Callback): unit {
@@ -396,6 +402,9 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
             const bindings = this.g.inst.instDecl(this.g.primitives, fullEnvG, depthZero, pat, defn, performTypeCheck)
             // TODO We need to collect typed and untyped instantiations separately.
             this._bindings.push(bindings)
+
+            // const lines = showGraph(this.g.heap, bindings.map(b => b.addr))
+            // this.log("instantiateG", prettyFerrum(pat), `${lines.length}`, "\n")//, lines.join("\n"))
         }
         // TODO We separate environments for typed and untyped instantiations.
         this._fullEnvG = fullEnvG.freeze()
@@ -407,28 +416,88 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
         if (this._rbDecls !== null) return this._rbDecls
         if (this._prev !== null) this._prev.readback()
 
-        this.log("readback")
+        this.log("readback.")
 
         const decls2: DeclLoc[] = []
         // const rbLetEnv = this._prev === null ? new Map : new Map(this._prev._rbLetEnv)
 
         const rbLetEnv = new Map(this._prev?._rbLetEnv)
 
+        const numDecls = this._decls.length
+        assert.isTrue(this._bindings.length === numDecls)
 
-        for (const patBind of this._bindings) {
+        for (let i = 0; i !== numDecls; ++i) {
+            const defn = this._decls[i][1]
+            const patBind = this._bindings[i]
             for (const { name, addr } of patBind) {
                 // if (name === "scanSimple")
                 //     assert.breakpoint()
                 const rbLamEnv: RbLamEnv = new Map
                 // TODO If co.grDecls is false, readback should readback the unreduced code.
-                const defn = readback(this.g.heap, rbLetEnv, rbLamEnv, "Term", addr)
-                const defnLoc = exprAddNilLoc(defn)
+                const addrReduced = this.g.heap.copyWithoutIndirections(addr)
+                // this.log("readbackA", name, `@${addr} @${addrReduced}`)
+                const defnRb = readback(this.g.heap, rbLetEnv, rbLamEnv, "Term", addrReduced)
+
+                // this.log("readbackSrc", name, "\n", prettyFerrum(defn).slice(0, 1000))
+                // this.log("readbackRb", name, "\n", prettyFerrum(defnRb).slice(0, 1000))
+                // this.log("readback", name, "\n", prettyFerrum2(defn))
+                // const lines = showGraph(this.g.heap, [addr])
+                // const lines = showGraph(this.g.heap, [addrReduced])
+                // // this.log("readbackG", name, "\n", lines.join("\n"))
+                // const gSize = lines.length
+                // const eSize = exprSize(defnRb)
+                // this.log("readbackG", name, `${gSize}`)
+                // this.log("readbackE", name, `${eSize}`)
+                // if (eSize > 3 * gSize) {
+                //     this.log("SUSPICIOUS", name)
+
+                //     this.log("readbackG", name, `${lines.length}`, "\n", lines.join("\n"))
+
+                //     const eLines: string[] = []
+                //     visitAll<ExprAddr>("", defnRb, (field, et) => {
+                //         if (et instanceof Array) return
+                //         const [, fields, children] = exprParts(et)
+                //         const fieldsStr = fields.map(f => (et as any)[f]).join(" ")
+                //         eLines.push(`${et.addr}: ${et.tag} ${fieldsStr}`)
+                //     }, () => { })
+
+                //     this.log("readbackE", name, `${eLines.length}`, "\n", eLines.join("\n"))
+                // }
+
+                const defnLoc = exprAddNilLoc(defnRb)
                 // // const v = eVar(nilLoc, name)
                 // const v: ExprAddr & Expr & EVar = {tag: "EVar", name, addr, loc: nilLoc }
                 // const declRb: Decl = [v, defnLoc]
                 const declRb: DeclLoc = [eVar({ loc: nilLoc }, name), defnLoc]
                 decls2.push(declRb)
                 rbLetEnv.set(addr, name)
+
+
+                // // For diagnostic purposes
+                // {
+                //     const prettyFerrumStyleNums = createDummyStyles(prettyFerrumStyleDefns)
+                //     const selectedAddrs = new Set<Addr>
+                //     const pf = mkPrettyFerrum(40, 40, prettyFerrumStyleNums, selectedAddrs)
+                //     // const pf = mkPrettyFerrum2(40, 40, prettyFerrumStyleNums, idExprMap, exprIdMap)
+
+                //     const txt0 = prettyFerrum(defnRb)
+                //     const txt0s = txt0.replace(/[ \n]/g, "")
+                //     // Limit super-volumous output.
+                //     console.log(`PRETTY0 (${txt0s.length}) ${name}\n`, txt0.slice(0, 1000000))
+
+                //     const exprD = pf.pExpr(defnRb)
+                //     const exprStr = pShow(prettyFerrumStyleNums.std, exprD.doc)
+
+                //     const len = uiTextLength(exprStr)
+                //     const txt1 = len > 1000000 ? "TOO LONG" : uiTextToStr(exprStr)
+                //     const txt1s = txt1.replace(/[ \n]/g, "")
+                //     console.log(`PRETTY1 (${txt1s.length}) ${name}\n`, txt1.slice(0, 1000000))
+
+                //     if (txt1s.length > 2 * txt0s.length) {
+                //         console.log("SUSPICIOUS")
+                //     }
+
+                // }
             }
         }
         // cr.addDeclsAst(decls2)
@@ -552,10 +621,12 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
             assert.isTrue(this.g !== null)
             assert.isTrue(this._fullEnvG !== null)
 
-            for (const d0 of this.decls()) {
-                const d = d0 as DeclTypeGraph
-                assert.isTrue(d[1].tm !== undefined)
-                this.g.gr.reduce(d[1].tm)
+            if (co.grD) {
+                for (const d0 of this.decls()) {
+                    const d = d0 as DeclTypeGraph
+                    assert.isTrue(d[1].tm !== undefined)
+                    this.g.gr.reduce(d[1].tm)
+                }
             }
 
             const rbDecls = this.readback()

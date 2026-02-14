@@ -1212,7 +1212,7 @@ let fail = [];
 
 -- TODO remove the short-circuited operators from Ferrum (the core language at least)
 -- let BoolLazy = { Bool | -> Bool };
--- ( lazy isn't really the write word here, as there's no requirement to share/memoize the function call )
+-- ( lazy isn't really the right word here, as there's no requirement to share/memoize the function call )
 -- how about:
 --     let BoolSuspended = { Bool | -> Bool };
 --     let BoolDelayed = { Bool | -> Bool };

@@ -774,6 +774,14 @@ export function visitParentOrChildren<T>(exp: ExprTree<T>, visit: VisitExprCall<
     }
 }
 
+export function exprSize(expr: Expr): number {
+    let size = 0
+    visitAll("", expr, () => {
+        size ++
+    }, null)
+    return size
+}
+
 export class Output {
     lines1: string[] = [""]
     nextLine: string = ""

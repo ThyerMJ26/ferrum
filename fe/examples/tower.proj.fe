@@ -1,0 +1,35 @@
+language ferrum/proj/0.1
+
+[ "project", 
+  [ ["primitives", "../primitives/vso.fe"]
+  , ["code", "../fe-in-fe/fe4-prelude.fe"]
+  , ["code", "../fe-in-fe/fe4-token.fe"]
+  , ["code", "../fe-in-fe/fe4-display-tree.fe"]
+  , ["code", "../fe-in-fe/fe4-scanner.fe"]
+  , ["code", "../fe-in-fe/fe4-expr.fe"]
+
+  , ["code", "../fe-in-fe/fe4-step.fe"]
+  , ["code", "../fe-in-fe/fe4-cps2.fe"]
+  , ["code", "../fe-in-fe/fe4-hps.fe"]
+
+  , ["code", "init-env.fe"]
+
+
+  , ["code", "../fe-in-fe/fe4-var-check.fe"]
+
+  , ["code", "../fe-in-fe/fe4-parser-common-before.fe"]
+  , ["code", "../fe-in-fe/fe4-parser-impl-hps.fe"]
+  , ["code", "../fe-in-fe/fe4-parser-common-after.fe"]
+
+
+  , ["code", "eval.fe"]
+ 
+  , ["text", "eval_declsStr", "eval.fe"]
+  -- , ["text", "eval_declsStr", "eval-short.fe"]
+
+
+  ]
+]
+
+
+

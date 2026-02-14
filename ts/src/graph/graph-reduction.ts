@@ -21,6 +21,7 @@ import { ExprLoc } from "../syntax/expr.js";
 import { GraphMonitor } from "../graph/code-table.js";
 import { Fuel, fuelMk } from "../ui/fuel.js";
 import { GraphApply } from "./graph-apply.js";
+import { isUpper } from "../syntax/scan.js";
 
 // TODO ? Maintain an explicit stack, for diagnostic purposes.
 // TODO ?   Currently the graph-reduction stack is stored implicitly in the JS stack.
@@ -39,7 +40,7 @@ export type GraphReduce = {
 
 // const gr_console_log = console.log
 const gr_console_log = (...args: any[]) => { }
-
+ 
 export function mkGraphReduce(h: Heap, subst: Substitute, primitives: Primitives, ga: GraphApply, monitor: GraphMonitor): GraphReduce {
 
     const prettyFerrumStyleNums = createDummyStyles(prettyFerrumStyleDefns, "")
@@ -352,6 +353,10 @@ export function mkGraphReduce(h: Heap, subst: Substitute, primitives: Primitives
                         case null:
                         case true:
                             gr_console_log(`Mark Reduction (${nodeName}), addr (${addr}), depth (${depth})`)
+                            // if (depth === 0 && !nodeName.startsWith("{") && !isUpper(nodeName[0])) {
+                            //     // blocked term-level reduction.
+                            //     console.log(`Mark Reduction (${nodeName}), addr (${addr}), depth (${depth})`)
+                            // }
                             h.setForm(addr, limitTargetForm)
                             monitor.graphReduction(addr, "Mark")
                             // Copying is done here so as to get the benefit of cacheing.

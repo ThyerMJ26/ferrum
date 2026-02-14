@@ -91,6 +91,76 @@ language ferrum/test/0.1
 
 
 
+, [ ["name", "list-predicates"]
+  , ["language", "ferrum/0.1"]
+  , ["project", "../fe/examples/prelude.proj.fe"]
+  , ["type_check", "bidir"]
+  , ["decls", 
+    """
+      let nums : List Int = [8, 9, 10, 11];
+
+      let a = listAllTrue nums <| n -> n > 10;
+      let b = listAnyTrue nums <| n -> n > 10;
+
+    """
+    ]
+
+  , ["expectValue", "a", "false"]
+  , ["expectValue", "b", "true"]
+
+  ]
+
+-- , [ ["name", "tower1"]
+--   , ["language", "ferrum/0.1"]
+--   , ["project", "../fe/examples/tower.proj.fe"]
+--   , ["type_check", "bidir"]
+--   , ["decls", 
+--     """
+--      
+--       let evalStr : { Str -> Any } =
+--           input ->
+--           -- debug2 ["evalStr/input", input] <| ->
+--           let toks = scan input;
+--           -- debug2 ["evalStr/toks", toks] <| ->
+--           let ast = parseExpr toks;
+--           -- debug2 ["evalStr/ast", ast] <| ->
+--           let value = eval1 ast initEnv;
+--           -- debug2 ["evalStr/value", value] <| ->
+--           value;
+-- 
+-- 
+--       let a = 10;
+-- 
+--       let addup = fix <| (addup : { Int -> Int }) -> (x : Int) -> if (x == 0) [ -> 0, -> x + addup (x - 1)];
+-- 
+--       let addup_src = "fix <| (addup : { Int -> Int }) -> (x : Int) -> if (x == 0) [ -> 0, -> x + addup (x - 1)]";
+--       let addup2 = evalStr addup_src;
+--       -- let addup2 = evalStr <$ addup_src;
+--       let addup2 = addup2 |> justTrustMeCast Any { Int -> Int };
+-- 
+--       -- let eval_decls_toks = scanFile "eval.fe" eval_declsStr;
+--       -- let eval_decls_ast = parseDecls eval_decls_toks;
+--       -- let eval2_ast : Expr = ["ELets", eval_decls_ast, ["EVar", "eval1"]];
+--       -- let addup_ast = parseExpr (scan addup_src);
+--       -- let eval2 = eval1 eval2_ast initEnv;
+--       -- -- let eval2 = eval1 eval2_ast <$ initEnv;
+--       -- let eval2 = eval2 |> justTrustMeCast Any { Expr -> Env -> Any };
+--       -- let addup3 = eval2 addup_ast initEnv;
+--       -- let addup3 = addup3 |> justTrustMeCast Any { Int -> Int };
+-- 
+--     """
+--     ]
+-- 
+--   , ["expectValue", "a", "10"]
+--   , ["expectTerm", "addup", "let v0_1=(v1_ -> (v2_ -> ( if2 ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
+--   , ["expectValue", "addup 10", "55"]
+--   , ["expectTerm", "addup2", "let v0_1=(v1_ -> (v2_ -> (  if2 ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
+--   , ["expectValue", "addup2 10", "55"]
+--   -- , ["expectValue", "addup3 10", "55"]
+-- 
+--   ]
+
+
 ]
 
 

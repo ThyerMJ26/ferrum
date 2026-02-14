@@ -135,7 +135,7 @@ export type AppRunner2 = (app: App) => unit
 // }
 
 
-export function createDummyStyles<S extends UiStyleDefns>(styles: S, nameHint: string): { [K in keyof S]: UiStyleNum } {
+export function createDummyStyles<S extends UiStyleDefns>(styles: S, nameHint?: string): { [K in keyof S]: UiStyleNum } {
     const result = Object.fromEntries(
         Object.entries(styles).map(
             ([name, defn]) =>

@@ -124,12 +124,11 @@ let nibbleVal : { Str -> Int } =
 
 let tryScan : { Str -> Pos -> Str -> (Maybe Pos) } =
     a -> pos1 -> input ->
-    let aLen = strLen a;
     -- trace2 ["tryScan", a, pos1] <| ->
+    let aLen = strLen a;
     loop2
-    [0 : Int
-    , pos1
-    ] <| [j, pos] ->
+    [0 : Int, pos1] <| 
+    [j, pos] ->
     let pos2 = posAdv input pos;
     if (j == aLen)
     [ -> break [pos]
@@ -230,6 +229,7 @@ let scanString : { Pos -> Str -> Str -> (List Token) -> [Pos, (List Token)] } =
             , _ |=> error ["unexpected escape sequence or EOF", chMb2, pos]
             ]
         , [ch] |=> continue [pos2, [ch ,, val]]
+        , _ -> error ["scanString", "failed to scan to end of string", pos0, pos1, chMb]
         ];
     result;
 
@@ -522,6 +522,7 @@ let scanFromPos : { Str -> Str -> Pos -> Tokens } =
     loop2 
     [pos, indent, tokens] <|
     [pos, indent, tokens] ->
+    -- trace2 ["scanFromPos", pos] <| ->
     match []
     [ -> tryEOF           pos input |> [pos] |=> break <| scanEof filename pos tokens
     , -> tryScan " "      pos input |> [pos] |=> continue <| [ pos, [" "  ,, indent], tokens ]
@@ -545,6 +546,7 @@ let scanFromPos : { Str -> Str -> Pos -> Tokens } =
         , -> tryScan "--" pos input |> [pos] |=> continue <| scanComment pos filename input tokens
         , -> tryScan "\"" pos input |> [_  ] |=> continue <| scanString pos filename input tokens
         , -> tryScan ""   pos input |> [pos] |=> continue <| scanToken pos filename input tokens
+        , -> error ["scan failed at:", pos, input]
         ]
     ];
 
