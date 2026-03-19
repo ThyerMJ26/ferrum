@@ -5,6 +5,12 @@
 
 - An experimental work-in-progress.
 
+
+Information on the code can be found in the READMEs in these directories:
+- [ts/src](ts/src/)
+- [tests](tests/)
+
+
 <!--
 
 More details at:
