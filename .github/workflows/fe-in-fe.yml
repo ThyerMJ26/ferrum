@@ -2,14 +2,14 @@ name: fe-in-fe
 on: [push]
 
 
-defaults:
-  run:
-    working-directory: ./run
 
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./run
     steps:
       - name: Check out the repository 
         uses: actions/checkout@v5
@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Test fif-short T
+        working-directory: ./run
         run: ../cmds/runtest ../tests/fif-short.test.fe
         
   test-fif-short-g:      
@@ -37,6 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Test fif-short G
+        working-directory: ./run
         run: ../cmds/runtest -g=TD ../tests/fif-short.test.fe
 
   test-fif-medium-t:      
@@ -44,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Test fif-medium T
+        working-directory: ./run
         run: ../cmds/runtest ../tests/fif-medium.test.fe
         
   test-fif-long-t:      
@@ -51,5 +54,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Test fif-long T
+        working-directory: ./run
         run: ../cmds/runtest ../tests/fif-long.test.fe
         
