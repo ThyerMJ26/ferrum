@@ -1,11 +1,8 @@
 name: fe-in-fe
 on: [push]
 
-
-
-
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,34 +22,15 @@ jobs:
       - name: Build
         run: ../cmds/build-ts
 
-  test-fif-short-t:      
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
       - name: Test fif-short T
-        working-directory: ./run
         run: ../cmds/runtest ../tests/fif-short.test.fe
         
-  test-fif-short-g:      
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
       - name: Test fif-short G
-        working-directory: ./run
         run: ../cmds/runtest -g=TD ../tests/fif-short.test.fe
 
-  test-fif-medium-t:      
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
       - name: Test fif-medium T
-        working-directory: ./run
         run: ../cmds/runtest ../tests/fif-medium.test.fe
         
-  test-fif-long-t:      
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
       - name: Test fif-long T
         working-directory: ./run
         run: ../cmds/runtest ../tests/fif-long.test.fe
