@@ -7,14 +7,8 @@
 
 
 Information on the code can be found in the READMEs in these directories:
-- [ts/src](ts/src/)
-- [tests](tests/)
--
 - [ts/src](ts/src#readme)
 - [tests](tests#readme)
--
-- [ts/src](ts/src/README.txt)
-- [tests](tests/README.txt)
 
 
 <!--

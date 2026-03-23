@@ -3,13 +3,13 @@ on: [push]
 
 
 defaults:
-  runs-on: ubuntu-latest
   run:
     working-directory: ./run
 
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the repository 
         uses: actions/checkout@v5
@@ -27,24 +27,28 @@ jobs:
 
   test-fif-short-t:      
     needs: [build]
+    runs-on: ubuntu-latest
     steps:
       - name: Test fif-short T
         run: ../cmds/runtest ../tests/fif-short.test.fe
         
   test-fif-short-g:      
     needs: [build]
+    runs-on: ubuntu-latest
     steps:
       - name: Test fif-short G
         run: ../cmds/runtest -g=TD ../tests/fif-short.test.fe
 
   test-fif-medium-t:      
     needs: [build]
+    runs-on: ubuntu-latest
     steps:
       - name: Test fif-medium T
         run: ../cmds/runtest ../tests/fif-medium.test.fe
         
   test-fif-long-t:      
     needs: [build]
+    runs-on: ubuntu-latest
     steps:
       - name: Test fif-long T
         run: ../cmds/runtest ../tests/fif-long.test.fe
