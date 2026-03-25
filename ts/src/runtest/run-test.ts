@@ -8,7 +8,7 @@ import { assert } from "../utils/assert.js"
 // Syntax
 import { ParseState } from "../syntax/parse.js"
 import { parseTerm } from "../syntax/parseFerrum2.js"
-import { prettyFerrum } from "../syntax/pretty-ferrum.js"
+import { prettyFerrum, prettyFerrum1, prettyFerrum2 } from "../syntax/pretty-ferrum.js"
 import { Project, projectClone, emptyProject, readProject } from "../syntax/project.js"
 import { scan2Fe } from "../syntax/scan.js"
 import { TdCheck, TdExpect, TestDefn } from "../syntax/test-defn.js"
@@ -788,13 +788,19 @@ export function continueTest(tr: TestResult): boolean {
                             if (predicates.termEqual(actualTm, expectTm, false)) {
                                 console.log(`    Term Test PASSED (G) ${td.name}[${td_expr}]`)
                                 console.log("      Expected:", expectedValue)
-                                console.log("      Actual:", actualTmStr)
+                                console.log("        Actual:", actualTmStr)
                                 trp.termMatchG = true
                             }
                             else {
                                 console.log(`    Term Test FAILED (G) ${td.name}[${td_expr}]`)
                                 console.log("      Expected:", expectedValue)
                                 console.log("        Actual:", actualTmStr)
+
+                                // const actual1 = prettyFerrum1(actualTermTm)
+                                // console.log("Actual1:\n", actual1)
+                                const actual2 = prettyFerrum2(actualTermTm)
+                                console.log("Actual2:\n", actual2)
+
                                 trp.termMatchG = false
                             }
                         }

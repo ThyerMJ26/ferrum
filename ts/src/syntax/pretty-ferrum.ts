@@ -7,8 +7,10 @@ import { UiStyle, UiStyleNumsFor, uiText, UiText, uiTextA, uiTextLength, uiTextL
 import { UiStyleNum } from "../ui/text.js";
 import { Addr } from "../graph/graph-heap2.js";
 import { ExprAddr } from "../graph/graph-readback.js";
+import { ferrumOperatorTable } from "./parseFerrum2.js";
 
-export const prettyFerrum = (expr: Expr): string => {
+
+export function prettyFerrum(expr: Expr): string {
     const p = prettyFerrum
     switch (expr.tag) {
         case "EVar":
@@ -88,17 +90,75 @@ export const prettyFerrum = (expr: Expr): string => {
             return `(${p(expr.expr)})`
         case "ETypeBrackets":
             return `{ ${p(expr.expr)} }`
-        case "EPrim":
+        case "EPrim": {
+            const nameP = expr.name
             switch (expr.args.length) {
                 case 0:
-                    return `( ${expr.name} )`
+                    return `( ${nameP} )`
                 case 1:
-                    return `( ${expr.name} ${p(expr.args[0])} )`
+                    const arg = p(expr.args[0])
+                    if (isAlpha(nameP)) {
+                        return `( ${nameP} ${p(expr.args[0])} )`
+                    }
+                    else {
+                        const op = ferrumOperatorTable.getPrim(nameP)
+                        assert.isDefined(op, "Unknown primitive operator")
+
+                        let apply
+                        switch (op.fixity) {
+                            case "Prefix":
+                                apply = `${op.nameC} ${arg}`
+                                break
+                            case "Postfix":
+                                apply = `${arg} ${op.nameC} `
+                                break
+                            default:
+                                assert.impossible("A unary operator must be either prefix or postfix.")
+                        }
+
+                        if (nameP === op.nameP.Term) {
+                            return `( ${apply} )`
+                        }
+                        else if (nameP === op.nameP.Type) {
+                            return `{ ${apply} }`
+                        }
+                        else {
+                            // One of the above will be true, or the operator table has been misconstructed.
+                            assert.impossible("Invalid operator definition.")
+                        }
+                    }
                 case 2:
-                    return `( ${p(expr.args[0])} ${expr.name} ${p(expr.args[1])} )`
+                    if (isAlpha(nameP)) {
+                        return `( ${nameP} ${p(expr.args[0])} ${p(expr.args[1])} )`
+                    }
+                    else {
+                        const op = ferrumOperatorTable.getPrim(nameP)
+                        if (op?.nameP?.Term === nameP) {
+                            return `( ${p(expr.args[0])} ${op?.nameC} ${p(expr.args[1])} )`
+                        }
+                        else if (op?.nameP?.Type === nameP) {
+                            return `{ ${p(expr.args[0])} ${op?.nameC} ${p(expr.args[1])} }`
+                        }
+                        else {
+                            assert.impossible("Unknown primitive operator")
+                            // console.error("Unknown primitive operator:", nameP)
+                            // if ((nameP.startsWith("(") && nameP.endsWith(")") || nameP.startsWith("{") && nameP.endsWith("}"))) {
+                            //     const open = nameP.at(0)!
+                            //     const close = nameP.at(-1)!
+                            //     const op = nameP.slice(1, -1)
+                            //     return `${open} ${p(expr.args[0])} ${op} ${p(expr.args[1])} ${close}`
+                            // }
+                            // else {
+                            // assert.impossible(`Invalid primitive operator: ${nameP}`)
+                            // }
+
+                        }
+
+                    }
                 default:
                     throw new Error("TODO?")
             }
+        }
         case "EType":
             return `${p(expr.expr)} : ${p(expr.type)}`
         default:
@@ -1175,9 +1235,10 @@ export function mkPrettyFerrum2(
                 const datumStr = expr.value === null ? "[]" : JSON.stringify(expr.value)
                 return { ...expr, id, doc: pTA(id, datumStr) }
             case "EPrim": {
+                const nameP = expr.name
                 const indent2 = indentInc(indent)
-                const args = expr.args.map((a, i) => pExpr0(indent2, tort, ["Op", expr.name, i], a))
                 if (isAlpha(expr.name)) {
+                    const args = expr.args.map((a, i) => pExpr0(indent2, "Term", ["Op", expr.name, i], a))
                     const doc =
                         expr.args.length === 0
                             ? pTA(id, expr.name)
@@ -1185,28 +1246,39 @@ export function mkPrettyFerrum2(
                     return { ...expr, id, args, doc }
                 }
                 else {
-                    const opn = tortOpen(tort)
-                    const cls = tortClose(tort)
+                    const op = ferrumOperatorTable.getPrim(nameP)
+                    assert.isDefined(op, "Unknown primitive operator.")
+                    const nameC = op.nameC
+                    assert.isTrue(nameP === op.nameP.Term || nameP === op.nameP.Type)
+                    const tort2 = nameP === op.nameP.Term ? "Term" : "Type"
+                    const args = expr.args.map((a, i) => pExpr0(indent2, tort2, ["Op", expr.name, i], a))
+
+                    const opn = tortOpen(tort2)
+                    const cls = tortClose(tort2)
                     switch (expr.args.length) {
                         case 0: {
-                            const doc = pHVA(id, pT(expr.name))
+                            const doc = pHVA(id, pT(nameC))
                             return { ...expr, id, args, doc }
                         }
                         case 1: {
-                            // --TODO handle prefix / postfix, assume prefix for now
-                            const doc = pHVA(id, pT(opn), pT(expr.name), args[0].doc, pT(cls))
+                            assert.isTrue(op.fixity === "Prefix" || op.fixity === "Postfix")
+                            const doc =
+                                op.fixity === "Prefix"
+                                    ? pHVA(id, pT(opn), pT(nameC), args[0].doc, pT(cls))
+                                    : pHVA(id, pT(opn), args[0].doc, pT(nameC), pT(cls))
                             return { ...expr, id, args, doc }
                         }
                         case 2: {
                             // TODO switch to using buildLeft_ExprDoc / buildRight_ExprDoc
-                            const doc = pHVA(id, pT(opn), args[0].doc, pT(expr.name), args[1].doc, pT(cls))
+                            const doc = pHVA(id, pT(opn), args[0].doc, pT(nameC), args[1].doc, pT(cls))
                             return { ...expr, id, args, doc }
                         }
                         default:
-                            assert.impossible("too many operator arguments")
+                            assert.impossible("Too many operator arguments.")
                     }
                 }
             }
+
             case "EType": {
                 const tm = pE1([expr.tag, 0], expr.expr)
                 const ty = pE1([expr.tag, 1], expr.type)

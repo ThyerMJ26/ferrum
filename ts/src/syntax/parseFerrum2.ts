@@ -295,7 +295,7 @@ function mkFerrumOperatorTable(): OperatorTableQuery<FerrumRuleName, FerrumOperN
     return ot
 }
 
-const ferrumOperatorTable = mkFerrumOperatorTable()
+export const ferrumOperatorTable = mkFerrumOperatorTable()
 
 
 

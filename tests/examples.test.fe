@@ -152,9 +152,9 @@ language ferrum/test/0.1
 --     ]
 -- 
 --   , ["expectValue", "a", "10"]
---   , ["expectTerm", "addup", "let v0_1=(v1_ -> (v2_ -> ( if2 ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
+--   , ["expectTerm", "addup", "let v0_1=(v1_ -> (v2_ -> ( if ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
 --   , ["expectValue", "addup 10", "55"]
---   , ["expectTerm", "addup2", "let v0_1=(v1_ -> (v2_ -> (  if2 ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
+--   , ["expectTerm", "addup2", "let v0_1=(v1_ -> (v2_ -> ( if ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
 --   , ["expectValue", "addup2 10", "55"]
 --   -- , ["expectValue", "addup3 10", "55"]
 -- 

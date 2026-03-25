@@ -2653,7 +2653,7 @@ type CgStmtExprFunc = (cb: CBuilder, expr: ExprTypeBidir) => CgStmtResult
 type CgExprApplyFunc = (cb: CBuilder, funcName: string, args: ExprTypeBidir[]) => CgExprResult
 
 function stmt_if(cb: CBuilder, funcName: string, args: ExprTypeBidir[]): CgStmtResult {
-    if (funcName === "if2" && args.length === 2
+    if ((funcName === "if" || funcName === "if2") && args.length === 2
         && args[1].tag === "EList" && args[1].exprs.length === 2
         && args[1].exprs[0].tag === "ELambda" && args[1].exprs[1].tag === "ELambda") {
 

@@ -51,11 +51,14 @@ export type OpDefn<RuleName> = {
 
 
 export type OperatorTableQuery<RuleName extends string, OperName extends string> = {
-    getInfix(name: string): OpDefn<RuleName> & { fixity: "Infix" } | undefined
-    getPrefix(name: string): OpDefn<RuleName> & { fixity: "Prefix" } | undefined
-    getPostfix(name: string): OpDefn<RuleName> & { fixity: "Postfix" } | undefined
-
+    // used for parsing
+    getInfix(nameC: string): OpDefn<RuleName> & { fixity: "Infix" } | undefined
+    getPrefix(nameC: string): OpDefn<RuleName> & { fixity: "Prefix" } | undefined
+    getPostfix(nameC: string): OpDefn<RuleName> & { fixity: "Postfix" } | undefined
     compare(lhs: RuleName, rhs: RuleName | null): OpCompare
+
+    // used for pretty-printing
+    getPrim(nameP: string): OpDefn<RuleName> | undefined
 }
 
 export type OperatorTableBuilder<RuleName extends string, OperName extends string> = {
@@ -90,8 +93,8 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
     // maps abstract names to operator definitions
     const abstractOps: Map<string, OpDefn<RuleName>> = new Map
 
-    // TODO ? maps primitive names to operator definitions
-    // const primitiveOps: Map<string, OpDefn> = new Map
+    // maps primitive names to operator definitions
+    const primitiveOps: Map<string, OpDefn<RuleName>> = new Map
 
     function addOp(
         fixity: Fixity, concreteOps: Map<string, OpDefn<RuleName>>,
@@ -102,6 +105,9 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
         assert.isFalse(concreteOps.has(nameC))
         // All ops should be defined before any are compared.
         assert.isTrue(compare_memo.size === 0)
+
+        const nameTm = tm === "Tm" ? `(${nameA})` : undefined
+        const nameTy = ty === "Ty" ? `{${nameA}}` : undefined
 
         const opDefn: OpDefn<RuleName> = {
             nameA,
@@ -116,6 +122,13 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
 
         concreteOps.set(nameC, opDefn)
         abstractOps.set(nameA, opDefn)
+        if (tm === "Tm") {
+            primitiveOps.set(nameTm!, opDefn)
+        }
+        if (ty === "Ty") {
+            primitiveOps.set(nameTy!, opDefn)
+        }
+
     }
 
     const main_precedence = new Map<RuleName, Set<RuleName>>
@@ -269,21 +282,24 @@ export function mkOperatorTable<RuleName extends string, OperName extends string
             computeTables()
         },
         /*** Query ***/
-        getInfix(name: string): OpDefn<RuleName> & { fixity: "Infix" } | undefined {
-            const op = infixOps.get(name)
+        getInfix(nameC: string): OpDefn<RuleName> & { fixity: "Infix" } | undefined {
+            const op = infixOps.get(nameC)
             return op
         },
-        getPrefix(name: string): OpDefn<RuleName> & { fixity: "Prefix" } | undefined {
-            const op = prefixOps.get(name)
+        getPrefix(nameC: string): OpDefn<RuleName> & { fixity: "Prefix" } | undefined {
+            const op = prefixOps.get(nameC)
             return op
         },
-        getPostfix(name: string): OpDefn<RuleName> & { fixity: "Postfix" } | undefined {
-            const op = postfixOps.get(name)
+        getPostfix(nameC: string): OpDefn<RuleName> & { fixity: "Postfix" } | undefined {
+            const op = postfixOps.get(nameC)
             return op
         },
         compare(lhs: RuleName, rhs: RuleName | null): OpCompare {
             if (rhs === null) return "Left"
             return compareMemoized(lhs, rhs)
+        },
+        getPrim(nameP: string): OpDefn<RuleName> | undefined {
+            return primitiveOps.get(nameP)
         },
 
     }

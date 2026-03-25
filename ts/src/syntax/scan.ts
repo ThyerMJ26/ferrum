@@ -306,19 +306,20 @@ export function scan2(filename: string, input: string, offsetPos: Pos | null = n
 
 export function scan2Fe(filename: string, input: string, offsetPos: Pos | null = null, lineStarts: Pos[] = []): Token[] {
     let toks = scan2a(filename, input, offsetPos, keywordsFe, keysymsFe, lineStarts)
-    // return toks
-    let toks2 = toks.map(tok => {
-        // in ferrum/0.1 "if" is no longer a keyword
-        // however the code-generators doesn't yet know this (and still supports earlier code)
-        // this temporary hack is the simplest way to not need to 
-        // modify/update the code generator just yet.
-        if (tok.tag === "ident" && tok.value === "if") {
-            let tok2: Token = { ...tok, tag: "ident", value: "if2" }
-            return tok2
-        }
-        return tok
-    })
-    return toks2
+    return toks
+
+    // let toks2 = toks.map(tok => {
+    //     // in ferrum/0.1 "if" is no longer a keyword
+    //     // however the code-generators doesn't yet know this (and still supports earlier code)
+    //     // this temporary hack is the simplest way to not need to 
+    //     // modify/update the code generator just yet.
+    //     if (tok.tag === "ident" && tok.value === "if") {
+    //         let tok2: Token = { ...tok, tag: "ident", value: "if2" }
+    //         return tok2
+    //     }
+    //     return tok
+    // })
+    // return toks2
 }
 
 export function scan2a(filename: string, input: string, offsetPos: Pos | null, keywords: string[], keysyms: string[], inputLineStarts: Pos[] | null): Token[] {
