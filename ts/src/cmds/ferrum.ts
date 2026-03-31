@@ -130,7 +130,7 @@ async function main() {
 
             let cBuilder: codegen_c.CBuilder = codegen_c.primCb.clone()
 
-            const declsTy = ct.allDecls()
+            const declsTy = ct.allDeclsT()
             const env = ct.fullEnvT()
 
             codegen_c.codegen_c_stmts(cBuilder, declsTy, env)

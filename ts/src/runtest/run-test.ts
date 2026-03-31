@@ -233,17 +233,17 @@ export function someTrueNoneFalse(...elems: (boolean | undefined)[]): boolean | 
 export async function startTest(initCt: CodeTable, td: TestDefn, opts: Opts, codeRunnerName: CodeRunnerName, testDir: URL, useLineStarts = true): Promise<TestResult> {
     const io = getIo()
 
+    const startTime = Date.now()
+    const doBidir = td.type_checks.indexOf("bidir") !== -1
+
     const co: CodeOptions = {
-        tyT: true,
+        tyT: doBidir,
         tyG: opts.useGraphTypes,
         inst: opts.useHeap,
         grD: opts.grDecls,
         grE: opts.grExpect,
         cg: opts.codegen as CodeRunnerName
     }
-
-    const startTime = Date.now()
-    const doBidir = td.type_checks.indexOf("bidir") !== -1
 
     assert.isTrue(td.project_parts.length === 0 || td.project === undefined, `Either "project" or "primitives" can be specified, but not both.`)
 
@@ -364,7 +364,9 @@ export function continueTest(tr: TestResult): boolean {
     const testResults = tr
 
     try {
-        testCt.typeCheckTr()
+        if (doBidir) {
+            testCt.typeCheckTr()
+        }
         // testCt.typeCheckGr(1)
 
         testResults.ct = testCt
@@ -378,7 +380,7 @@ export function continueTest(tr: TestResult): boolean {
         let typeErrorCountBidir: { [_: string]: number } | null = null
         let tcsTree: TcSummary | null = null
         if (doBidir) {
-            const allDecls = testCt.allDecls()
+            const allDecls = testCt.allDeclsT()
             typeErrorCountBidir = countTypeErrors(allDecls)
             // For the purposes runtest, when expecting type-checking to pass, 
             //   an unproven type-check is as bad as a failed type-check.
@@ -399,8 +401,8 @@ export function continueTest(tr: TestResult): boolean {
             // console.log(expr.showExp2(codeRunner.declsBidir, "Expr: ty1", expr.showExprTy1))
             // console.log(expr.showExp2(codeRunner.declsBidir, "Expr: ty2", expr.showExprTy2))
             // printTypeDiffReport(codeRunner.declsBidir)
-            console.log(showExp2(testCt.allDecls(), "Expr: ty1", showExprTy1))
-            console.log(showExp2(testCt.allDecls(), "Expr: ty2", showExprTy2))
+            console.log(showExp2(testCt.allDeclsT(), "Expr: ty1", showExprTy1))
+            console.log(showExp2(testCt.allDeclsT(), "Expr: ty2", showExprTy2))
 
             if (opts.useGraphTypes) {
                 console.log("")
@@ -504,23 +506,26 @@ export function continueTest(tr: TestResult): boolean {
                 const check = trp.check
                 const ct = testResults.ct
                 const desc = truncateStr(40, check.expr)
-                const exprTy = testCt.typeExprStr(check.expr, check.lineStarts)
-                const typeErrorCountT = countTypeErrors(exprTy)
-                // Treat unproven type-checks the same as failed type-checks.
-                typeErrorCountT.error += typeErrorCountT.unproven
-                // const typeErrorCountT = types.countTypeErrors(exprTy)["error"] + types.countTypeErrors(exprTy)["unproven"]
-                // const exprGr = testCt.instantiate_exprStr(null, check.expr, check.lineStarts)
-                const tcsTree = tcSummariseTree2(exprTy)
-                // const tcsGraph = tcSummariseGraph2(testResults.ct.graph(), exprGr)
-                // const typeErrorCountG = doGraphTypes ? tcsGraph.fail + tcsGraph.unknown + tcsGraph.internalError : null
-                const typeErrorCount = typeErrorCountT // === 0 && ((typeErrorCountG ?? 0) === 0)
-                trp.exprTy = exprTy
-                // The expr should always type-check ok, 
-                //   except when using "typeCheckFail",
-                //   in which case trp.typeCheck will be overwritten
-                trp.typeCheckT = typeErrorCountT.error === 0
-                // trp.typeCheckG = typeErrorCountG === 0
-                // trp.typeCheckG = doGraphTypes ? tcsGraph.pass !== 0 && tcsGraph.fail === 0 && tcsGraph.unknown === 0 && tcsGraph.internalError === 0 : undefined
+                let typeErrorCountT
+                if (tr.co.tyT) {
+                    const exprTy = testCt.typeExprStr(check.expr, check.lineStarts)
+                    typeErrorCountT = countTypeErrors(exprTy)
+                    // Treat unproven type-checks the same as failed type-checks.
+                    typeErrorCountT.error += typeErrorCountT.unproven
+                    // const typeErrorCountT = types.countTypeErrors(exprTy)["error"] + types.countTypeErrors(exprTy)["unproven"]
+                    // const exprGr = testCt.instantiate_exprStr(null, check.expr, check.lineStarts)
+                    const tcsTree = tcSummariseTree2(exprTy)
+                    // const tcsGraph = tcSummariseGraph2(testResults.ct.graph(), exprGr)
+                    // const typeErrorCountG = doGraphTypes ? tcsGraph.fail + tcsGraph.unknown + tcsGraph.internalError : null
+                    const typeErrorCount = typeErrorCountT // === 0 && ((typeErrorCountG ?? 0) === 0)
+                    trp.exprTy = exprTy
+                    // The expr should always type-check ok, 
+                    //   except when using "typeCheckFail",
+                    //   in which case trp.typeCheck will be overwritten
+                    trp.typeCheckT = typeErrorCountT.error === 0
+                    // trp.typeCheckG = typeErrorCountG === 0
+                    // trp.typeCheckG = doGraphTypes ? tcsGraph.pass !== 0 && tcsGraph.fail === 0 && tcsGraph.unknown === 0 && tcsGraph.internalError === 0 : undefined
+                }
 
                 let tcsGraph: TcSummary | null = null
                 if (doGraphTypes) {
@@ -538,7 +543,7 @@ export function continueTest(tr: TestResult): boolean {
 
                 switch (check.tag) {
                     case "typeCheckOk": {
-                        if (typeErrorCountT.error === 0) {
+                        if (tr.co.tyT && typeErrorCountT?.error === 0) {
                             console.log(`typeCheckOk PASSED (T): ${desc}`)
                         }
                         else {
@@ -558,7 +563,7 @@ export function continueTest(tr: TestResult): boolean {
                         break
                     }
                     case "typeCheckFail": {
-                        if (typeErrorCountT.error !== 0) {
+                        if (tr.co.tyT && typeErrorCountT?.error !== 0) {
                             trp.passed = true
                             trp.typeCheckT = true
                             console.log(`typeCheckFail PASSED (T): ${desc}`)
@@ -621,7 +626,7 @@ export function continueTest(tr: TestResult): boolean {
                         }
                         if (doGraphTypes) {
                             assert.isTrue(trp.expr !== undefined)
-                            const exprG = ct.instantiate_expr(trp.exprTy)
+                            const exprG = ct.instantiate_expr(trp.expr)
                             const rbLetEnv = new Map
                             const rbLamEnv = new Map
                             // g.gr.reduceAll(exprG.synTy, formWeak)
@@ -699,44 +704,43 @@ export function continueTest(tr: TestResult): boolean {
                         // let typeValue = codeRunner.lookupTypeValueOrNull(trp.expr.name)
 
 
-                        let typeValue: Type | null = null
-                        const envEntry = ct.fullEnvT()[trp.expr.name]
-                        if (envEntry === undefined) {
-                            typeValue = null
-                        }
-                        let [varVal, varTy] = envEntry
-                        if (varTy.tag === "TType" || varTy.tag === "TSingleType") {
-                            typeValue = nodeToType(varVal)
-                        }
-
-
-
-                        if (typeValue !== null) {
-                            let actualValue = showType2(typeValue)
-                            if (actualValue === expectedValue) {
-                                console.log(`    Term (Type Value) Test PASSED (T) ${td.name}[${td_expr}]`)
-                                console.log("      Actual:", actualValue)
-                                trp.termMatchT = true
+                        if (tr.co.tyT) {
+                            let typeValue: Type | null = null
+                            const envEntry = ct.fullEnvT()[trp.expr.name]
+                            if (envEntry === undefined) {
+                                typeValue = null
                             }
-                            else {
-                                console.log(`    Term (Type Value) Test FAILED (T) ${td.name}[${td_expr}]`)
-                                console.log("      Expected:", expectedValue)
-                                console.log("        Actual:", actualValue)
-                                trp.termMatchT = false
+                            let [varVal, varTy] = envEntry
+                            if (varTy.tag === "TType" || varTy.tag === "TSingleType") {
+                                typeValue = nodeToType(varVal)
+                            }
+
+                            if (typeValue !== null) {
+                                let actualValue = showType2(typeValue)
+                                if (actualValue === expectedValue) {
+                                    console.log(`    Term (Type Value) Test PASSED (T) ${td.name}[${td_expr}]`)
+                                    console.log("      Actual:", actualValue)
+                                    trp.termMatchT = true
+                                }
+                                else {
+                                    console.log(`    Term (Type Value) Test FAILED (T) ${td.name}[${td_expr}]`)
+                                    console.log("      Expected:", expectedValue)
+                                    console.log("        Actual:", actualValue)
+                                    trp.termMatchT = false
+                                }
                             }
                         }
+
+
                         if (doGraphTypes) {
-
-
                             // assert.isTrue(trp.expr !== undefined)
                             // const exprG = ct.instantiate_expr(trp.expr)
                             // const rbLamEnv = new Map
                             // const actualTmExpr = readbackExpr(ct.graph().heap2, exprG.tm)
                             // const actualTmStr = showExp(actualTmExpr)
 
-
                             assert.isTrue(trp.expr !== undefined)
-                            const exprG = ct.instantiate_expr(trp.exprTy)
+                            const exprG = ct.instantiate_expr(trp.expr)
                             const rbLamEnv = new Map
                             const g = ct.graph()
                             // g.gr.reduceAll(exprG.synTy, formWeak)
@@ -826,7 +830,7 @@ export function continueTest(tr: TestResult): boolean {
                             trp.valueMatch = false
                         }
                         if (doGraphTypes) {
-                            const exprG = ct.instantiate_expr(trp.exprTy)
+                            const exprG = ct.instantiate_expr(trp.expr)
                         }
                         break
                     }

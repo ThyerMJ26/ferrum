@@ -510,12 +510,13 @@ class MemoDataImpl implements MemoData {
 }
 
 
-function isScalar(a: Data): boolean {
+export function isScalar(a: Data): boolean {
     switch (typeof a) {
         case "boolean":
-        case "number":
         case "string":
             return true
+        case "number":
+            return !Number.isNaN(a)
         case "object":
             return a === null
         default:

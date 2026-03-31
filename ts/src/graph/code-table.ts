@@ -8,6 +8,7 @@ import { mkEnv } from "../utils/env.js"
 import {
     DeclLoc, DeclTypeBidir, eDatum, eTypeAnnot, EVar, eVar, ExprLoc, exprAddNilLoc, ExprTree, ExprTypeBidir, showExp2, showExpConcise, visitAll, visitChildren, visitParentOrChildren,
     exprSize, exprParts,
+    Decl,
 } from "../syntax/expr.js"
 import { scan2Fe, scanFile } from "../syntax/scan.js"
 import { ParseState } from "../syntax/parse.js"
@@ -231,8 +232,10 @@ export type CodeTable = {
 
     typeCheckTr(cb?: TypeCheckTr_Callback): unit
     instantiate(performTypeCheck: boolean): unit
-    allDecls_accum(declsTy: DeclTypeBidir[]): unit
-    allDecls(): DeclTypeBidir[]
+    allDecls_accumT(declsTy: DeclTypeBidir[]): unit
+    allDeclsT(): DeclTypeBidir[]
+    allDecls_accum(declsTy: DeclLoc[]): unit
+    allDecls(): DeclLoc[]
     typeCheckGr(): boolean
     tcSummaryTr(): TcSummary
     tcSummaryGr(): TcSummary
@@ -398,7 +401,7 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
 
         this.log("instantiate")
 
-        for (const [pat, defn] of this.declsTy()) {
+        for (const [pat, defn] of this.decls()) {
             const bindings = this.g.inst.instDecl(this.g.primitives, fullEnvG, depthZero, pat, defn, performTypeCheck)
             // TODO We need to collect typed and untyped instantiations separately.
             this._bindings.push(bindings)
@@ -507,19 +510,34 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
 
         return decls2
     }
-    allDecls_accum(declsTy: DeclTypeBidir[]): unit {
+
+    allDecls_accumT(declsTy: DeclTypeBidir[]): unit {
         if (this._prev !== null) {
-            this._prev.allDecls_accum(declsTy)
+            this._prev.allDecls_accumT(declsTy)
         }
         this.typeCheckTr()
         assert.isTrue(this._declsTy !== null)
         declsTy.push(...this._declsTy)
     }
-    allDecls(): DeclTypeBidir[] {
+    allDeclsT(): DeclTypeBidir[] {
         const declsTy: DeclTypeBidir[] = []
-        this.allDecls_accum(declsTy)
+        this.allDecls_accumT(declsTy)
         return declsTy
     }
+
+    allDecls_accum(decls: DeclLoc[]): unit {
+        if (this._prev !== null) {
+            this._prev.allDecls_accum(decls)
+        }
+        assert.isTrue(this._decls !== null)
+        decls.push(...this._decls)
+    }
+    allDecls(): DeclLoc[] {
+        const decls: DeclLoc[] = []
+        this.allDecls_accum(decls)
+        return decls
+    }
+
     typeCheckGr(): boolean {
         if (this.typeCheckGr_done) {
             return true
@@ -532,7 +550,7 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
 
         this.log("typeCheckGr")
 
-        visitAll("", this.declsTy(), null, (field, e: ExprTree<ExprLoc>) => {
+        visitAll("", this.decls(), null, (field, e: ExprTree<ExprLoc>) => {
             if (e instanceof Array) {
                 return
             }
@@ -603,7 +621,12 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
             cr = codeRunnerMakers[co.cg]()
 
         }
-        this.typeCheckTr()
+
+        let decls = this.decls()
+        if (co.tyT) {
+            this.typeCheckTr()
+            decls = this.declsTy()
+        }
 
         this.crs.set(crk, cr)
 
@@ -614,7 +637,8 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
 
         if (!co.inst) {
             this.log("codegen")
-            cr.addDeclsAst(this.declsTy())
+            // cr.addDeclsAst(this.declsTy())
+            cr.addDeclsAst(decls)
         }
         else {
             this.instantiate(co.tyG)
@@ -622,7 +646,7 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
             assert.isTrue(this._fullEnvG !== null)
 
             if (co.grD) {
-                for (const d0 of this.decls()) {
+                for (const d0 of decls) {
                     const d = d0 as DeclTypeGraph
                     assert.isTrue(d[1].tm !== undefined)
                     this.g.gr.reduce(d[1].tm)
@@ -666,7 +690,7 @@ class CodeTableImpl implements CodeTable, CodeTableRow {
         return expr as ExprTypeGraph
     }
     instantiate_exprStr(language: string | null, expStr: string, lineStarts: Pos[]): ExprTypeGraph {
-        this.typeCheckTr()
+        // this.typeCheckTr()
         let expTokens = scan2Fe("", expStr, null, lineStarts)
         let expPS = new ParseState(expTokens)
         let expAst = parseTerm(expPS, language ?? "ferrum/0.1")

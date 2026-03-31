@@ -1290,7 +1290,10 @@ let primitives2 = () => {
     prims2.ifType = (a) => ([t, [f, _]]) => (a instanceof TypeDefn ? t(a) : f(a))
 
 
-    prims1.strOrd = (a) => a.charCodeAt(0)
+    prims1.strOrd = (a) => { 
+        assert.isTrue(a.length > 0); 
+        return a.charCodeAt(0) 
+    }
     prims1.strChr = (a) => String.fromCharCode(a)
     prims1.strLen = (a) => a.length
     prims2.strAdd = (a) => (b) => a + b

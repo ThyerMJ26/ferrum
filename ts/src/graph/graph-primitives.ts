@@ -3203,7 +3203,31 @@ export function mkPrims(): Primitives {
         })
 
         // TODO ? Rename: charToInt
-        builtinId("strOrd", [weak], parseTy("Str -> Int"), mkDatum1Action("string", (a: any) => a.charCodeAt(0)))
+        // builtinId("strOrd", [weak], parseTy("Str -> Int"), mkDatum1Action("string", (a: any) => {
+        //     assert.isTrue(a.length > 0);
+        //     const code = a.charCodeAt(0)
+        //     return Number.isNaN(code) ? -1 : code
+        // }))
+        // strOrd can be called with an empty string, in correct code, if it is reducing beneath lambdas.
+        // This shouldn't cause an assertion error (as it does in runtime-code.ts),
+        //   the error is indicated by returning false instead.
+        // (Ideally strOrd/charToInt should take a Char instead)
+        builtinId("strOrd", [weak], parseTy("Str -> Int"), (depth, [a0]): ActionResult => {
+            const a = h.directAddrOf(a0)
+            if (h.isTmPair(a) || h.isTmLam(a) || h.isReducedToType(a)) {
+                return false
+            }
+            if (!h.isTmDatum(a)) {
+                return null
+            }
+            let aDatum = h.datum_tm(a)
+            if (!(typeof aDatum === "string" && aDatum.length > 0)) {
+                return false
+            }
+            const code = aDatum.charCodeAt(0)
+            assert.isTrue(code >= 0)
+            return h.tmDatum(code)
+        })
         // TODO ? Rename: charFromInt
         builtinId("strChr", [weak], parseTy("Int -> Char"), mkDatum1Action("number", (a: any) => String.fromCharCode(a)))
 

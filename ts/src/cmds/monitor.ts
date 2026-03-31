@@ -217,7 +217,7 @@ async function refresh(wsp: WatchProjectState) {
         console.log("")
         // memo.saveToFile()
 
-        const errors = types.collectTypeErrors(ct.allDecls())
+        const errors = types.collectTypeErrors(ct.allDeclsT())
         for (const err of errors) {
             // console.log(`ERROR: (${err.tc}) ${token.showLoc(err.loc)}`)
             // console.log(`ERROR: ${showLoc(err.loc)}`)

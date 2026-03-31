@@ -3,6 +3,7 @@
 import { unit } from "../utils/unit.js"
 import { assert } from "../utils/assert.js"
 import { equalObjects } from "../utils/equal-objects.js"
+import { isScalar } from "../tree/memoize.js"
 
 
 import {
@@ -2025,6 +2026,9 @@ export function mkHeap_AoUoS(): Heap {
         nodeToKey(node, key)
         let addrMemo = heap_addrMemo
         for (const k of key) {
+            if (!isScalar(k)) {
+                assert.impossible()
+            }
             if (addrMemo.next === null) {
                 addrMemo.next = new Map
             }

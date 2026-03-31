@@ -161,3 +161,69 @@ let eval1 : { Expr -> Env -> Any }
 
 
 
+
+let Eval2 = { Env -> Expr -> Any };
+
+let evalDecls2 : { { Env -> Expr -> Any } -> Decls -> Env -> Env } = 
+    eval -> decls -> env ->
+    let evalDecl : { Env -> Decl -> Env } = 
+        env1 -> [letPat, exp] -> 
+        let env2 = bindPat letPat (eval env1 exp);
+        append env2 env1;
+    let env3 = foldl evalDecl env decls;
+    env3;
+
+
+
+let eval2 : { Env -> Expr -> Any }
+    = rec ( (eval : Eval2) -> (env : Env) -> (expr : Expr) -> 
+    -- let _ = debug ["Eval", expr];
+    expr $?
+    match expr
+    [ ["ELit", val] |=> val
+    , ["EApply",func,arg] |=> 
+        -- (castT (eval env func):Fun any any) (eval env arg)
+        let func1 = eval env func;
+        let func2 = castT func1 : { Any -> Any };
+        let arg2 = eval env arg;
+        func2 arg2
+    -- , ["EApply",func,arg] |=> env $? (castT (eval env func):Fun any any) (eval env arg)
+    , ["EPair",h,t] |=> [ eval env h,,eval env t ]
+    , ["EList", elems, []] |=> map ((elem: Expr) -> eval env elem) elems
+    , ["EList", elems, [listTail]] |=> appendTail (map ((elem: Expr) -> eval env elem) elems) (eval env listTail)
+    , ["EVar",name] |=>  lookupVar name env
+    , ["ELambda",argPat,body] |=> argVal -> eval (append (bindPat argPat argVal) env) body
+    -- , ["ELambda",argPat,body] |=> argVal -> env $? (eval body) (append (bindPat argPat argVal) env)
+    , ["ELambdaMaybe",argPat,body] |=> 
+        argVal -> 
+        match (tryBindPat argPat argVal)
+        [ [] |=>
+            nothing
+        , [env2] |=>
+            just (eval (append env2 env) body)
+        ]
+    , ["ELets",decls, body] |=> 
+        let env2 = evalDecls2 eval decls env;
+        eval env2 body
+    , ["EOper",opName,args] |=> 
+        let op = lookupVar opName env;
+        let argVals = map ((arg: Expr) -> eval env arg) args;
+        let apply = f -> a -> (castT f: {Any -> Any}) a;
+        -- let apply = f -> a -> (castT f) a;
+        let app = foldl apply op argVals;
+        -- let _ = debug ["EOper", args];
+        -- let _ = debug ["EOper", opName, argVals, app];
+        app
+    , ["ETypeBrackets", expr2] |=>
+        -- all type-brackets evaluate to Any for now
+        -- Any
+        "AnyType"
+    , ["ETermBrackets", expr2] |=>
+        eval env expr2
+    , ["EType", term, ty] |=>
+        eval env term
+    , [tag,,_] |=> error ["eval1: missing case",tag," ",expr]
+    ] );
+
+
+

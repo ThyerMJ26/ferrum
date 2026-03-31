@@ -46,7 +46,7 @@ export type ETypeBrackets<T> = T & { tag: "ETypeBrackets", expr: Expr<T> }
 export type ETermBrackets<T> = T & { tag: "ETermBrackets", expr: Expr<T> }
 
 
-export type Decl<T> = [Expr<T>, Expr<T>]
+export type Decl<T = {}> = [Expr<T>, Expr<T>]
 export type Expr<T = {}> =
     EVar<T> | ELambda<T> | EApply<T> | EDatum<T> | ELet<T> | EPair<T>
     | EType<T> | EAs<T> | ETypeAs<T>

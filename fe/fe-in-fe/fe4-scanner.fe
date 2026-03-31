@@ -342,7 +342,7 @@ let scanVerbatimString : { Pos -> Pos -> Str -> Str -> Str -> (List Token) -> [P
 let CharClassName = 
     { "WHITESPACE" | "LETTER" | "DIGIT" | "OPER" | "PUNCT" | "UNDERSCORE" | "QUOTE" | "COMMA"};
 
-let CharClassDefn = { [ CharClassName, Str->Bool ] };
+let CharClassDefn = { [ CharClassName, Str -> Bool ] };
 
 let charClasses: List CharClassDefn = 
     -- [ ["WHITESPACE", ch -> isElem ch [" ", "\t", "\n", "\r", ""]]
@@ -467,14 +467,18 @@ let lookupCharClass = (ccName: Str) ->
     ];
 
 let anyCcMatch = (ccs: List CharClassName) -> (ch: Str) ->
-    loop2 ccs <| ccs2 ->
-    ifNil ccs2
-    [ [] -> break false
-    , [ ccName ,, ccs3] -> 
-        let ccTest = lookupCharClass ccName;
-        if (ccTest ch)
-        [ -> break true
-        , -> continue ccs3
+    if (ch == "")
+    [ -> false
+    , -> 
+        loop2 ccs <| ccs2 ->
+        ifNil ccs2
+        [ [] -> break false
+        , [ ccName ,, ccs3] -> 
+            let ccTest = lookupCharClass ccName;
+            if (ccTest ch)
+            [ -> break true
+            , -> continue ccs3
+            ]
         ]
     ];
 
@@ -499,7 +503,7 @@ let scanToken : { Pos -> Str -> Str -> (List Token) -> [Pos, (List Token)] } =
                 ];
             let ch3 = strCharAt input (posIdx pos3);
             let endMatch = anyCcMatch end ch3;
-            if endMatch
+            if ((ch3 == "") || endMatch) 
             [ -> 
                 let tok = cookToken [name, value, [filename, pos1, pos3]];
                 break [pos3, [tok,,tokens]]

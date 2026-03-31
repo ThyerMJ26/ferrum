@@ -110,6 +110,166 @@ language ferrum/test/0.1
 
   ]
 
+
+
+
+-- , [ ["name", "calc"]
+--   , ["language", "ferrum/0.1"]
+--   -- , ["project", "../fe/examples/prelude.proj.fe"]
+--   , ["primitives", "../fe/primitives/vso.fe"]
+--   , ["type_check", "none"]
+--   , ["decls", 
+--     """
+--       let Rec = Fix;
+--       let rec = fix;
+--       let justTrustMeCast = castT;
+-- 
+--       let Expr = Rec <| E -> 
+--           { ["Const", Int]
+--           -- | ["Var", Int]
+--           | ["Var"]
+--           | ["+", E, E]
+--           | ["*", E, E]
+--           | ["-", E, E]
+--           };
+-- 
+--       let h : { X @ Any -> (Hd X) } = 
+--         (x: X @ Any) ->
+--         ifPair x
+--         [ [xh ,, xt] -> 
+--             castT xh
+--         , _ -> error "Not a pair."
+--         -- , _ -> panic "Not a pair."
+--         ];
+-- 
+--       let t : { X @ Any -> (Tl X) } = 
+--         (x: X @ Any) ->
+--         ifPair x
+--         [ [xh ,, xt] -> castT xt
+--         , _ -> error "Not a pair."
+--         ];
+-- 
+--       let calc1 : { Expr -> Int -> Int } =
+--         rec <| (c : { Expr -> Int -> Int }) ->
+--         expr -> var ->
+--         let tag = h expr;
+--         if (tag == "Const") [ -> h (t expr), ->
+--         if (tag == "Var") [ -> var, ->
+--         if (tag == "+") [ -> c (h (t expr)) var + c (h (t (t expr))) var, ->
+--         if (tag == "*") [ -> c (h (t expr)) var * c (h (t (t expr))) var, ->
+--         if (tag == "-") [ -> c (h (t expr)) var - c (h (t (t expr))) var, ->
+--           error ["Unknown tag", tag]
+--         ]]]]];
+-- 
+--       let case = 
+--         c -> k -> v ->
+--         ifNil (c v) 
+--         [ -> k v
+--         , [r] -> r
+--         ];
+-- 
+-- 
+--       let t1 = case (1 |=> 4) (x -> x + 1) 1;  
+-- 
+--       let calc2 : { Expr -> Int -> Int } =
+--         fix2 <| (c : { Expr -> Int -> Int }) ->
+--         expr -> var ->
+--         expr |>
+--         case (["Const", n] |=> n) <|
+--         case (["Var"] |=> var) <|
+--         case (["+", lhs, rhs] |=> c lhs var + c rhs var) <|
+--         case (["*", lhs, rhs] |=> c lhs var * c rhs var) <|
+--         case (["-", lhs, rhs] |=> c lhs var - c rhs var) <|
+--         -> error "No case matched.";
+-- 
+--       let one = calc1 ["Const", 1] 0;
+--       let inc = calc1 ["+", ["Var"], ["Const", 1]];
+--       let incS = calc1 <$ ["+", ["Var"], ["Const", 1]];
+-- 
+--       let one2 = calc2 ["Const", 1] 0;
+--       let inc2 = calc2 ["+", ["Var"], ["Const", 1]];
+--       let incS2 = calc2 <$ ["+", ["Var"], ["Const", 1]];
+--       let squareS2 = calc2 <$ ["*", ["Var"], ["Var"]];
+--       -- let cubeS2 = calc2 <$ ["*", ["Var"], ["*", ["Var"], ["Var"]]];
+--       let cubeS2 = calc2 <$ ["*", ["*", ["Var"], ["Var"]], ["Var"]];
+--     """
+--     ]
+-- 
+--   , ["expectValue", "one", "1"]
+--   , ["expectValue", "inc 2", "3"]
+--   , ["expectTerm", "incS", "v1 -> v1 + 1"]
+-- 
+--   , ["expectValue", "t1", "4"]
+--   , ["expectTerm", "t1", "4"]
+-- 
+--   , ["expectValue", "one2", "1"]
+--   , ["expectValue", "inc2 2", "3"]
+--   , ["expectTerm", "incS2", "v1 -> v1 + 1"]
+--   , ["expectTerm", "squareS2", "v1 -> v1 * v1"]
+--   -- , ["expectTerm", "cubeS2", "v1 -> v1 * (v1 * v1)"]
+--   , ["expectTerm", "cubeS2", "v1 -> v1 * v1 * v1"]
+-- 
+--   ]
+-- 
+-- 
+-- 
+-- , [ ["name", "eval1"]
+--   , ["language", "ferrum/0.1"]
+--   , ["project", "../fe/examples/tower.proj.fe"]
+--   , ["type_check", "bidir"]
+--   , ["decls", 
+--     """
+--      
+--       let evalStr : { Str -> Any } =
+--           input ->
+--           let toks = scan input;
+--           let ast = parseExpr toks;
+--           -- let value = eval1 ast initEnv;
+--           let value = eval2 initEnv ast;
+--           value;
+-- 
+--       let evalStrT : { { T : Type } -> Str -> T } =
+--         (T : Type) -> input ->
+--         castT (evalStr input);
+-- 
+--       let oneStr = "1";
+--       let oneE = evalStrT Int <$ oneStr;
+-- 
+--       let constOneStr = "x -> 1";
+--       let constOneE = evalStrT { Int -> Int } <$ constOneStr;
+-- 
+--       let incStr = "x -> x + 1";
+--       let incE = evalStrT { Int -> Int } <$ incStr;
+-- 
+--       let addup = fix <| (addup : { Int -> Int }) -> (x : Int) -> if (x == 0) [ -> 0, -> x + addup (x - 1)];
+-- 
+--       let addup_src = "fix <| (addup : { Int -> Int }) -> (x : Int) -> if (x == 0) [ -> 0, -> x + addup (x - 1)]";
+--       let addup2 = evalStr addup_src;
+--       -- let addup2 = evalStr <$ addup_src;
+--       let addup2 = addup2 |> justTrustMeCast Any { Int -> Int };
+-- 
+-- 
+--     """
+--     ]
+-- 
+--   -- , ["expectValue", "oneE", "1"]
+--   -- , ["expectTerm", "oneE", "1"]
+-- 
+--   , ["expectValue", "constOneE 0", "1"]
+--   , ["expectTerm", "constOneE", "v1 -> 1"]
+-- 
+--   -- , ["expectValue", "incE 2", "3"]
+--   -- , ["expectTerm", "incE", "x -> x + 1"]
+-- 
+--   -- , ["expectTerm", "addup", "let v0_1=(v1_ -> (v2_ -> ( if ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
+--   -- , ["expectValue", "addup 10", "55"]
+--   -- , ["expectTerm", "addup2", "let v0_1=(v1_ -> (v2_ -> ( if ( v2_ == 0 ) [([] -> 0),([] -> ( v2_ + v1_ ( v2_ - 1 ) ))] )));(v1_ -> v0_1 ( fix v0_1 ) v1_)"]
+--   -- , ["expectValue", "addup2 10", "55"]
+-- 
+--   ]
+
+
+
 -- , [ ["name", "tower1"]
 --   , ["language", "ferrum/0.1"]
 --   , ["project", "../fe/examples/tower.proj.fe"]
